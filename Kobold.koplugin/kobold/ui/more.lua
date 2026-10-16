@@ -63,6 +63,8 @@ function KoboldMore:init()
             { label = _("Kobold Settings"), icon = "appbar.settings", action = function() self:showKoboldSettings() end },
             { label = _("About Kobold"), icon = "notice-info", fallback = "appbar.menu",
               action = function() self:showAbout() end },
+            { label = _("Check for updates"), icon = "check", fallback = "notice-info",
+              action = function() require("kobold.updater").check() end },
             { label = _("Restart Kobold"), icon = "cre.render.reload", fallback = "tab_history",
               action = function() self:restartKobold() end },
             { label = _("Exit Kobold"), icon = "close", action = function() self:exitKobold() end },

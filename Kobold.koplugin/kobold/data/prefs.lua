@@ -34,6 +34,7 @@ local DEFAULTS = {
     stats_line2_action = DEFAULT_ACTION,
     stats_label        = nil,            -- nil = "Reading Stats"
     battery            = "fill",         -- "fill" or "percent"
+    open_tap           = "koreader",     -- "koreader", "single" or "double"
 }
 
 -- The settings behind the reading stats popup, for its reset button.

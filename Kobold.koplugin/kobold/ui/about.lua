@@ -33,10 +33,16 @@ local KoboldAbout = InputContainer:extend{
     name = "kobold_about",
 }
 
-local function image(file, size)
+-- `follow_night` lets the image invert with the page in night mode (the
+-- logo is a black drawing; kept original it would vanish on the black page).
+-- The QR code keeps its original colors so it still scans.
+local function image(file, size, follow_night)
     if not file then return nil end
     local ok, widget = pcall(function()
-        return ImageWidget:new{ file = file, width = size, height = size, alpha = true }
+        return ImageWidget:new{
+            file = file, width = size, height = size, alpha = true,
+            original_in_nightmode = not follow_night,
+        }
     end)
     return ok and widget or nil
 end
@@ -75,7 +81,7 @@ function KoboldAbout:build()
         VerticalSpan:new{ width = gap },
     }
     local icon_size = Screen:scaleBySize(128)
-    local icon = image(KoboldMeta.icon("kobold.svg"), icon_size)
+    local icon = image(KoboldMeta.icon("kobold.svg"), icon_size, true)
     if icon then page[#page + 1] = centred(content_w, icon) end
     -- Tap area of the logo, for the debug mode toggle.
     self.logo_rect = Geom:new{

@@ -61,19 +61,30 @@ end
 -- A nil file yields a blank slot of the same w x h so rows stay aligned.
 -- Covers come from the shared memory cache (data/covers.lua), so drawing the
 -- same book again on another screen or page costs no decode.
-function KoboldWidgets.makeCover(file, w, h)
+-- opts.outline draws a thin dark line around the cover (Home), as the
+-- e-reader's own home screen does; the cover shrinks to keep the outline
+-- inside w x h.
+function KoboldWidgets.makeCover(file, w, h, opts)
     if not file then
         return KoboldWidgets.fixed(w, h, HorizontalSpan:new{ width = w })
     end
+    -- Every cover gets the thin outline unless a caller turns it off.
+    local line = (opts and opts.outline == false) and 0 or Screen:scaleBySize(1)
     local bb = KoboldCovers.get(file, w, h)
     if bb then
-        local sw, sh = KoboldCovers.fittedSize(file, w, h)
-        return ImageWidget:new{
+        local sw, sh = KoboldCovers.fittedSize(file, w - 2 * line, h - 2 * line)
+        local image = ImageWidget:new{
             image = bb,
             image_disposable = false,
             width = sw,
             height = sh,
             scale_factor = 0,
+        }
+        if line == 0 then return image end
+        return FrameContainer:new{
+            bordersize = line, padding = 0,
+            color = Blitbuffer.COLOR_DARK_GRAY,
+            image,
         }
     end
     -- Sized by its content: inner box + padding + border = exactly w x h.
@@ -337,7 +348,7 @@ end
 -- Shared top status bar: time on the left, then contrast, Wi-Fi, battery and
 -- search icons on the right.
 function KoboldWidgets.statusBar(content_w)
-    local time_text = TextWidget:new{ text = os.date("%I:%M %p"), face = KoboldWidgets.face(16) }
+    local time_text = TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }
     local widths, size, gap, style = statusIconWidths()
     local icons = HorizontalGroup:new{
         KoboldWidgets.icon("appbar.contrast", size),
@@ -372,6 +383,20 @@ end
 -- contrast icon (brightness popup), the Wi-Fi icon (Wi-Fi popup) and the
 -- search icon (KOReader's file search). The frame is remembered on `screen`
 -- so refreshStatusBar can redraw just the bar.
+-- True when the clock shows 24-hour time: Kobold's own choice (clock
+-- popup), or KOReader's clock setting when none was made.
+function KoboldWidgets.clock24()
+    local own = KoboldPrefs.get("clock_24h")
+    if own ~= nil then return own == true end
+    return not (G_reader_settings and G_reader_settings:isTrue("twelve_hour_clock"))
+end
+
+-- Current time for the status bar: "22:42" or "10:42 PM".
+function KoboldWidgets.clockText()
+    if KoboldWidgets.clock24() then return os.date("%H:%M") end
+    return (os.date("%I:%M %p"):gsub("^0", ""))
+end
+
 function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
     local frame = KoboldWidgets.fixed(content_w, status_h, KoboldWidgets.statusBar(content_w))
     screen._kobold_status = {
@@ -392,6 +417,9 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
         KoboldTaps.add(screen, "KoboldStatusIcon" .. i, math.floor(x - icon_gap / 2), margin,
             icon_w + icon_gap, status_h, action)
     end
+    -- The clock (left third of the bar): tap for the 12/24-hour popup.
+    KoboldTaps.add(screen, "KoboldClockTap", margin, margin, math.floor(content_w / 3), status_h,
+        function() require("kobold.ui.clock_popup").show() end)
     -- Debug mode: long-press the clock (left third of the bar) to screenshot.
     -- Always registered and checked when pressed, so toggling debug mode on
     -- the About page works on screens that are already open.
@@ -453,7 +481,121 @@ end
 --   Charging / NotCharging / KoboldSettingsChanged: redraw the battery.
 --   ShowingReader: a book is opening (from search results, the book menu,
 --     ...), so close this screen instead of leaving it under the reader.
+-- True for a swipe starting in the left or right edge strip, the same
+-- strips KOReader's edge gestures use (1/8 of the width by default).
+local function isEdgeSwipe(ev)
+    if ev.ges ~= "swipe" or not ev.pos then return false end
+    local edge = 1 / 8
+    local ok, d = pcall(function() return G_defaults:readSetting("DSWIPE_ZONE_LEFT_EDGE") end)
+    if ok and type(d) == "table" and tonumber(d.w) then edge = tonumber(d.w) end
+    local W = Screen:getWidth()
+    return ev.pos.x < W * edge or ev.pos.x > W * (1 - edge)
+end
+
+-- The file browser's Gestures plugin, or nil.
+local function gesturesPlugin()
+    local FileManager = package.loaded["apps/filemanager/filemanager"]
+    local fm = FileManager and FileManager.instance
+    return fm, fm and fm.gestures
+end
+
+-- Runs fm:onGesture(ev) with KOReader's events sent to every window. The
+-- action a KOReader gesture runs (brightness, warmth, refresh, ...) is
+-- sent as an event to the top window only, which is Kobold; the file
+-- browser that handles it would never see it. SimpleUI does the same.
+local function runOnFileBrowser(fm, ev)
+    local orig = UIManager.sendEvent
+    UIManager.sendEvent = function(_um, e) return UIManager:broadcastEvent(e) end
+    local ok, handled = pcall(fm.onGesture, fm, ev)
+    UIManager.sendEvent = orig
+    return ok and handled and true or false
+end
+
+-- Runs a gesture through the file browser's gesture zones. KOReader keeps
+-- one set of gestures for the file browser and one for the reader; the
+-- file browser's set is tried first, then the reader's (actions that only
+-- make sense in a book simply do nothing here). True when one ran.
+local function forwardGesture(ev)
+    local fm, g = gesturesPlugin()
+    if not fm or not fm.onGesture then return false end
+    if runOnFileBrowser(fm, ev) then return true end
+    local reader_set = g and g.data and g.data.gesture_reader
+    if type(reader_set) ~= "table" or g.gestures == reader_set then return false end
+    local own = g.gestures
+    g.gestures = reader_set
+    local handled = runOnFileBrowser(fm, ev)
+    g.gestures = own
+    return handled
+end
+
+-- Name of the corner gesture for a tap or hold at ev.pos, using KOReader's
+-- corner zones, or nil when it is not in a corner.
+local CORNERS = {
+    { key = "DTAP_ZONE_TOP_LEFT",     tap = "tap_top_left_corner",     hold = "hold_top_left_corner" },
+    { key = "DTAP_ZONE_TOP_RIGHT",    tap = "tap_top_right_corner",    hold = "hold_top_right_corner" },
+    { key = "DTAP_ZONE_BOTTOM_LEFT",  tap = "tap_left_bottom_corner",  hold = "hold_bottom_left_corner" },
+    { key = "DTAP_ZONE_BOTTOM_RIGHT", tap = "tap_right_bottom_corner", hold = "hold_bottom_right_corner" },
+}
+local function cornerGesture(ev)
+    if (ev.ges ~= "tap" and ev.ges ~= "hold") or not ev.pos then return nil end
+    local W, H = Screen:getWidth(), Screen:getHeight()
+    for _i, c in ipairs(CORNERS) do
+        local ok, z = pcall(function() return G_defaults:readSetting(c.key) end)
+        if ok and type(z) == "table" then
+            local x, y = ev.pos.x / W, ev.pos.y / H
+            if x >= z.x and x < z.x + z.w and y >= z.y and y < z.y + z.h then
+                return c[ev.ges]
+            end
+        end
+    end
+    return nil
+end
+
+-- True when the user has an action set for corner gesture `name`, in the
+-- file browser or reader gestures. Kobold's own taps keep corners that have
+-- nothing set.
+local function cornerIsSet(name)
+    local _fm, g = gesturesPlugin()
+    if not name or not g or not g.data then return false end
+    for _i, set in ipairs({ g.data.gesture_fm, g.data.gesture_reader }) do
+        if type(set) == "table" and set[name] ~= nil then return true end
+    end
+    return false
+end
+
 function KoboldWidgets.addScreenEvents(ScreenClass)
+    -- KOReader's own gestures (the Gestures plugin: edge swipes, diagonal
+    -- and two-finger gestures, multiswipes, ...) live on the file browser
+    -- below Kobold, and KOReader only gives a touch to the top window, so
+    -- Kobold passes them on (see forwardGesture). Swipes that start on the
+    -- left or right edge go to KOReader first, so edge gestures such as
+    -- brightness and warmth win over My Books paging. Corner taps and holds
+    -- go to KOReader first when a corner gesture is set. Everything else
+    -- goes to Kobold first.
+    function ScreenClass:onGesture(ev)
+        local InputContainer = require("ui/widget/container/inputcontainer")
+        if isEdgeSwipe(ev) and forwardGesture(ev) then return true end
+        if cornerIsSet(cornerGesture(ev)) and forwardGesture(ev) then return true end
+        if InputContainer.onGesture(self, ev) then return true end
+        return forwardGesture(ev)
+    end
+
+    -- KOReader changed a book's metadata (Book information, custom title or
+    -- author, ...): forget what Kobold remembered and show the new data.
+    function ScreenClass:onBookMetadataChanged()
+        require("kobold.data.library").forgetDocInfo()
+        require("kobold.data.mybooks").forget()
+        require("kobold.data.bookinfo").forget()
+        if self.scheduleReload then
+            self:scheduleReload()
+        elseif self.kobold_tab == "home" and self.refreshCovers then
+            UIManager:nextTick(function()
+                self.data = require("kobold.data.home").getHomeData()
+                self:refreshCovers()
+            end)
+        end
+    end
+
     -- KoboldCoversUpdated: background cover extraction finished; screens
     -- with covers define refreshCovers to redraw with them.
     function ScreenClass:onKoboldCoversUpdated()

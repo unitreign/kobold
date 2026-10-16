@@ -16,7 +16,21 @@ KoboldMyBooksData.FILTERS = { "all", "reading", "unread", "finished" }
 
 -- Sort ids in menu order. "added" is the file's modification time, the same
 -- order the library scan uses.
-KoboldMyBooksData.SORTS = { "added_desc", "added_asc", "title_asc", "title_desc" }
+-- "opened" is the last time the book was opened, from KOReader's history;
+-- never opened books come last, newest added first.
+KoboldMyBooksData.SORTS = { "opened_desc", "added_desc", "added_asc", "title_asc", "title_desc" }
+
+-- { [file] = time } of every book in KOReader's history.
+local function openedTimes()
+    local times = {}
+    local ok, RH = pcall(require, "readhistory")
+    if ok and RH and type(RH.hist) == "table" then
+        for _i, h in ipairs(RH.hist) do
+            if h.file and h.time then times[h.file] = h.time end
+        end
+    end
+    return times
+end
 
 -- Sort ids for the Authors, Series and Collections lists.
 KoboldMyBooksData.GROUP_SORTS = { "name_asc", "name_desc" }
@@ -86,6 +100,11 @@ end
 -- title, authors, series, series_index } }. Re-read only when the sidecar's
 -- stamp changes (the book was read, its status set, ...).
 local sidecar_memo = {}
+
+-- Forgets the remembered sidecar facts (KOReader changed some metadata).
+function KoboldMyBooksData.forget()
+    sidecar_memo = {}
+end
 
 local function readSidecar(file)
     local stamp = KoboldLibrary.sidecarStamp(file)
@@ -174,6 +193,14 @@ function KoboldMyBooksData.sort(books, sort)
     if sort == "added_asc" then
         cmp = function(a, b)
             if a.mtime ~= b.mtime then return a.mtime < b.mtime end
+            return byTitle(a, b)
+        end
+    elseif sort == "opened_desc" then
+        local times = openedTimes()
+        cmp = function(a, b)
+            local ta, tb = times[a.file] or 0, times[b.file] or 0
+            if ta ~= tb then return ta > tb end
+            if a.mtime ~= b.mtime then return a.mtime > b.mtime end
             return byTitle(a, b)
         end
     elseif sort == "title_asc" then

@@ -117,6 +117,11 @@ function KoboldBookInfo.getMap()
 end
 
 -- The row for one book, or nil when the cover browser has not read it.
+-- Forgets the in-memory map; the next getMap reads it again.
+function KoboldBookInfo.forget()
+    memo = nil
+end
+
 function KoboldBookInfo.get(file)
     return KoboldBookInfo.getMap()[file]
 end
