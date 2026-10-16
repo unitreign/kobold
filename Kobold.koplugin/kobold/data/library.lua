@@ -202,6 +202,19 @@ function KoboldLibrary.getDocInfo(file)
     local pages = ds:readSetting("doc_pages")
     local md5 = ds:readSetting("partial_md5_checksum")
     pcall(function() ds:close() end)
+    -- Corrections made in KOReader's Book information are kept apart from
+    -- the book, in custom_metadata.lua; they win over the book's own.
+    pcall(function()
+        local custom_file = DocSettings:findCustomMetadataFile(file)
+        if not custom_file then return end
+        local custom = DocSettings.openSettingsFile(custom_file):readSetting("custom_props")
+        if type(custom) ~= "table" then return end
+        props = type(props) == "table" and props or {}
+        local merged = {}
+        for k, v in pairs(props) do merged[k] = v end
+        for k, v in pairs(custom) do merged[k] = v end
+        props = merged
+    end)
     return {
         percent = percent,
         status = type(summary) == "table" and summary.status or nil,
@@ -218,6 +231,13 @@ end
 -- sidecarStamp). nil for a book with no sidecar, without reading anything.
 -- Home and My Books both read through this, so a sidecar is parsed once.
 local docinfo_memo = {}  -- [file] = { stamp, info }
+
+-- Forgets every remembered sidecar read and the library scan, after
+-- KOReader changed a book's metadata (see widgets.lua).
+function KoboldLibrary.forgetDocInfo()
+    docinfo_memo = {}
+    library_cache = nil
+end
 
 function KoboldLibrary.getDocInfoCached(file)
     local stamp = KoboldLibrary.sidecarStamp(file)

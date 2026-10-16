@@ -65,7 +65,7 @@ local function stackedCovers(files, L)
     local gap = Screen:scaleBySize(3)
     for i = 3, 1, -1 do
         local _, sh = KoboldWidgets.coverSize(files[i], L.stack_w[i], L.stack_h[i])
-        local cover = KoboldWidgets.makeCover(files[i], L.stack_w[i], L.stack_h[i])
+        local cover = KoboldWidgets.makeCover(files[i], L.stack_w[i], L.stack_h[i], { outline = true })
         if i < 3 and files[i] and files[i + 1] then
             cover = FrameContainer:new{
                 bordersize = 0, padding = 0, padding_right = gap,
@@ -232,14 +232,14 @@ function KoboldHome:build()
             local file = item.file
             KoboldTaps.add(self, "KoboldTop" .. i,
                 margin + (i - 1) * (top_w + L.top_gap), y_read, top_w, top_h,
-                function() KoboldReader.open(self, file) end)
+                function() KoboldReader.tapOpen(self, file) end)
         end
     end
     if data.latest and data.latest.file then
         local file = data.latest.file
         KoboldTaps.add(self, "KoboldContinue", margin, y_info, col_w,
             info_title_h + info_sub_h,
-            function() KoboldReader.open(self, file) end)
+            function() KoboldReader.tapOpen(self, file) end)
     end
     -- Reading stats: each line runs its own action from Kobold Settings. With
     -- two lines the lower half of the title runs the second line's action;
@@ -289,7 +289,7 @@ function KoboldHome:buildReadingSection(reading, L)
         cells[i] = VerticalGroup:new{
             align = "left",
             KoboldWidgets.fixed(L.top_w, L.top_h,
-                KoboldWidgets.makeCover(item and item.file, L.top_w, L.top_h)),
+                KoboldWidgets.makeCover(item and item.file, L.top_w, L.top_h, { outline = true })),
             VerticalSpan:new{ width = L.tight_gap },
             LeftContainer:new{
                 dimen = Geom:new{ w = L.top_w, h = L.caption_h },

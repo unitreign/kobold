@@ -11,6 +11,8 @@ local Event           = require("ui/event")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
 local InfoMessage     = require("ui/widget/infomessage")
+local HorizontalSpan  = require("ui/widget/horizontalspan")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
 local InputContainer  = require("ui/widget/container/inputcontainer")
 local OverlapGroup    = require("ui/widget/overlapgroup")
 local RightContainer  = require("ui/widget/container/rightcontainer")
@@ -31,6 +33,7 @@ local KoboldWidgets   = require("kobold.ui.widgets")
 local Screen = Device.screen
 
 local BATTERY_LABELS = { fill = _("Fill"), percent = _("Percentage") }
+local TAP_LABELS = { koreader = _("KOReader default"), single = _("Single tap"), double = _("Double tap") }
 
 local KoboldSettings = InputContainer:extend{
     -- Not modal: its editors and the stats popup open on top of it.
@@ -83,6 +86,29 @@ function KoboldSettings:spec()
                 }, function(v) KoboldPrefs.set("cover_rows", v) end, done)
             end,
         },
+        {
+            title = _("Open books with"),
+            desc = _("How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."),
+            value = TAP_LABELS[KoboldPrefs.get("open_tap")] or TAP_LABELS.koreader,
+            on_tap = function()
+                KoboldEditors.choose(_("Open books with"), {
+                    { id = "koreader", label = TAP_LABELS.koreader },
+                    { id = "single", label = TAP_LABELS.single },
+                    { id = "double", label = TAP_LABELS.double },
+                }, KoboldPrefs.get("open_tap"), function(id)
+                    KoboldPrefs.set("open_tap", id ~= "koreader" and id or nil)
+                end, done)
+            end,
+        },
+        {
+            title = _("Files tab"),
+            desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
+            value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
+            on_tap = function()
+                KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
+                done()
+            end,
+        },
         { section = _("Status bar") },
         {
             title = _("Battery"),
@@ -131,9 +157,51 @@ function KoboldSettings:build()
     local head_h    = Screen:scaleBySize(48)
     local close_sz  = Screen:scaleBySize(28)
 
+    local footer_h  = Screen:scaleBySize(44)
+
+    -- The list is split into pages that fit the screen; page_starts holds
+    -- the first item of each page.
     local list_y = margin + top_h + head_gap + head_h
-    local list, hits = KoboldSettingsList.build(self:spec(), margin, list_y, content_w)
+    local max_h = H - list_y - footer_h - Screen:scaleBySize(10)
+    local spec = self:spec()
+    self.page_starts = { 1 }
+    while true do
+        local _l, _h, nxt = KoboldSettingsList.build(spec, margin, list_y, content_w,
+            { from = self.page_starts[#self.page_starts], max_h = max_h })
+        if not nxt then break end
+        self.page_starts[#self.page_starts + 1] = nxt
+    end
+    self.pages = #self.page_starts
+    self.page = math.max(1, math.min(self.page or 1, self.pages))
+    local list, hits = KoboldSettingsList.build(spec, margin, list_y, content_w,
+        { from = self.page_starts[self.page], max_h = max_h })
     self.hits = hits
+    self.footer_y = H - footer_h
+
+    -- Page footer, only when there is more than one page.
+    local footer = VerticalSpan:new{ width = 0 }
+    if self.pages > 1 then
+        local icon_size = Screen:scaleBySize(24)
+        local label = TextWidget:new{
+            text = string.format(_("Page %d of %d"), self.page, self.pages),
+            face = KoboldWidgets.face(14), fgcolor = KoboldWidgets.subtitleColor(),
+        }
+        local spacer = math.max(0, math.floor((content_w - 2 * icon_size - label:getSize().w) / 2))
+        local function chevron(name, shown)
+            return shown and KoboldWidgets.icon(name, icon_size) or HorizontalSpan:new{ width = icon_size }
+        end
+        footer = CenterContainer:new{
+            dimen = Geom:new{ w = W, h = footer_h },
+            HorizontalGroup:new{
+                align = "center",
+                chevron("chevron.left", self.page > 1),
+                HorizontalSpan:new{ width = spacer },
+                label,
+                HorizontalSpan:new{ width = spacer },
+                chevron("chevron.right", self.page < self.pages),
+            },
+        }
+    end
     self.close_rect = Geom:new{
         x = margin + content_w - close_sz - Screen:scaleBySize(10), y = margin - Screen:scaleBySize(10),
         w = close_sz + Screen:scaleBySize(20), h = top_h + Screen:scaleBySize(10),
@@ -167,15 +235,33 @@ function KoboldSettings:build()
                     list,
                 },
             },
+            VerticalGroup:new{
+                VerticalSpan:new{ width = H - footer_h },
+                footer,
+            },
         },
     }
 end
+
+function KoboldSettings:goToPage(page)
+    page = math.max(1, math.min(self.pages or 1, page))
+    if page == self.page then return end
+    self.page = page
+    self:refresh()
+end
+
+function KoboldSettings:onSettingsNextPage() self:goToPage(self.page + 1) return true end
+function KoboldSettings:onSettingsPrevPage() self:goToPage(self.page - 1) return true end
 
 function KoboldSettings:init()
     local W, H = Screen:getWidth(), Screen:getHeight()
     self.dimen = Geom:new{ x = 0, y = 0, w = W, h = H }
     if Device:hasKeys() then
-        self.key_events = { Close = { { Device.input.group.Back } } }
+        self.key_events = {
+            Close = { { Device.input.group.Back } },
+            SettingsNextPage = { { Device.input.group.PgFwd } },
+            SettingsPrevPage = { { Device.input.group.PgBack } },
+        }
     end
     self.start_revision = KoboldPrefs.revision()
     self[1] = self:build()
@@ -185,9 +271,31 @@ function KoboldSettings:init()
             self:onClose()
             return
         end
+        if self.pages > 1 and ges.pos.y >= self.footer_y then
+            self:goToPage(self.page + (ges.pos.x < W / 2 and -1 or 1))
+            return
+        end
         local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
         if on_tap then on_tap() end
     end)
+    -- Swipe up for the next page, down for the previous one.
+    self:registerTouchZones({
+        {
+            id = "KoboldSettingsSwipe",
+            ges = "swipe",
+            screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 },
+            handler = function(ges)
+                if ges.direction == "north" then
+                    self:goToPage(self.page + 1)
+                elseif ges.direction == "south" then
+                    self:goToPage(self.page - 1)
+                else
+                    return false
+                end
+                return true
+            end,
+        },
+    })
 end
 
 function KoboldSettings:refresh()

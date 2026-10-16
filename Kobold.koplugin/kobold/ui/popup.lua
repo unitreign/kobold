@@ -31,6 +31,11 @@ end
 
 -- Top-left corner of a box `fw` wide: its right edge lines up with the right
 -- edge of the status bar.
+-- Top-left corner for a popup left-aligned under the status bar (the clock).
+function KoboldPopup.originLeft()
+    return margin(), margin() + statusH() + Screen:scaleBySize(8)
+end
+
 function KoboldPopup.origin(fw)
     local x = Screen:getWidth() - margin() - fw
     local y = margin() + statusH() + Screen:scaleBySize(8)

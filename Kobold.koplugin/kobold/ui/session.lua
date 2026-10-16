@@ -22,6 +22,12 @@ function KoboldSession.rememberScreen(screen)
     }
 end
 
+-- Records a tab to show the next time the file browser starts (used to
+-- open Kobold over a book: the book is closed first, see main.lua).
+function KoboldSession.rememberTab(tab, state)
+    pending = { tab = tab, state = state }
+end
+
 -- The recorded screen, cleared so it is used once. nil when there is none.
 function KoboldSession.take()
     local p = pending

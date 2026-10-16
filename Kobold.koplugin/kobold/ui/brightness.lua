@@ -71,7 +71,9 @@ function KoboldBrightness:build()
     local inner = fw - 2 * (pad + border)
     local track_w = inner - 2 * (label_w + slide_gap)
     local n  = #self.sliders
+    local night_h = Screen:scaleBySize(40)
     local fh = n * (title_h + row_h) + (n - 1) * sec_gap + 2 * (pad + border)
+        + sec_gap + night_h
     local fx, fy = KoboldPopup.origin(fw)
     local x0 = fx + border + pad
     local y0 = fy + border + pad
@@ -135,7 +137,7 @@ function KoboldBrightness:build()
             label("-"), HorizontalSpan:new{ width = slide_gap }, track,
             HorizontalSpan:new{ width = slide_gap }, label("+"),
         }
-        if i < n then sections[#sections + 1] = VerticalSpan:new{ width = sec_gap } end
+        sections[#sections + 1] = VerticalSpan:new{ width = sec_gap }
 
         self.hit[i] = {
             minus = Geom:new{ x = x0, y = row_y, w = label_w, h = row_h },
@@ -143,6 +145,31 @@ function KoboldBrightness:build()
             track = Geom:new{ x = x0 + label_w + slide_gap, y = row_y, w = track_w, h = row_h },
         }
     end
+
+    -- Night mode row: KOReader's inverted display, with an on/off switch.
+    local night = G_reader_settings:isTrue("night_mode")
+    local sw_w, sw_h = Screen:scaleBySize(64), Screen:scaleBySize(30)
+    local switch = FrameContainer:new{
+        bordersize = Screen:scaleBySize(2), padding = 0,
+        radius = math.floor(sw_h / 2),
+        background = night and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE,
+        CenterContainer:new{
+            dimen = Geom:new{ w = sw_w - Screen:scaleBySize(4), h = sw_h - Screen:scaleBySize(4) },
+            TextWidget:new{
+                text = night and _("On") or _("Off"), face = KoboldWidgets.face(14), bold = true,
+                fgcolor = night and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK,
+            },
+        },
+    }
+    local night_title = TextWidget:new{ text = _("Night mode"), face = KoboldWidgets.face(18) }
+    sections[#sections + 1] = KoboldWidgets.fixed(inner, night_h, HorizontalGroup:new{
+        align = "center",
+        night_title,
+        HorizontalSpan:new{ width = math.max(0, inner - night_title:getSize().w - sw_w) },
+        switch,
+    })
+    local night_y = y0 + n * (title_h + row_h + sec_gap)
+    self.night_rect = Geom:new{ x = x0, y = night_y, w = inner, h = night_h }
 
     local box = FrameContainer:new{
         width = fw, bordersize = border, padding = pad,
@@ -196,6 +223,10 @@ function KoboldBrightness:onTapBrightness(_, ges)
         self:onClose()
         return true
     end
+    if self.night_rect and pos:intersectWith(self.night_rect) then
+        self:toggleNightMode()
+        return true
+    end
     for i, s in ipairs(self.sliders) do
         local hit = self.hit[i]
         if hit then
@@ -233,6 +264,23 @@ local function saveLight()
     if G_reader_settings and G_reader_settings.flush then
         pcall(G_reader_settings.flush, G_reader_settings)
     end
+end
+
+-- KOReader's own night mode toggle (the one in its menu and gestures),
+-- sent to the file browser or reader that handles it. It refreshes the
+-- whole screen itself; the popup is redrawn with the new state.
+function KoboldBrightness:toggleNightMode()
+    local Event = require("ui/event")
+    local fm = package.loaded["apps/filemanager/filemanager"]
+    local rui = package.loaded["apps/reader/readerui"]
+    local target = (rui and rui.instance) or (fm and fm.instance)
+    if target then
+        target:handleEvent(Event:new("ToggleNightMode"))
+    else
+        UIManager:broadcastEvent(Event:new("ToggleNightMode"))
+    end
+    self[1] = self:build()
+    UIManager:setDirty(self, "ui")
 end
 
 function KoboldBrightness:onClose()

@@ -41,10 +41,14 @@ end
 --   { section = "HOME" }                                   a gray band
 --   { title, desc = optional, value = optional text,
 --     action = true for an italic action word, on_tap = fn }  a row
--- Returns the widget (exactly `w` wide) and the tap rectangles
--- { { rect = Geom, on_tap = fn }, ... } in screen coordinates, for a list
--- drawn with its top-left corner at (x, y).
-function KoboldSettingsList.build(spec, x, y, w)
+-- Returns the widget (exactly `w` wide), the tap rectangles
+-- { { rect = Geom, on_tap = fn }, ... } in screen coordinates for a list
+-- drawn with its top-left corner at (x, y), and the index of the first item
+-- left out (nil when everything fit).
+-- opts.from: first item to show (default 1). opts.max_h: stop before the
+-- list grows past this height; a section band is never left last.
+function KoboldSettingsList.build(spec, x, y, w, opts)
+    opts = opts or {}
     local band_h   = Screen:scaleBySize(30)
     local band_pad = Screen:scaleBySize(10)
     local row_pad  = Screen:scaleBySize(12)
@@ -52,19 +56,15 @@ function KoboldSettingsList.build(spec, x, y, w)
     local line_h   = Screen:scaleBySize(1)
     local value_w  = math.floor(w * 0.38)
     local text_w   = w - value_w - gap
+    local from     = opts.from or 1
 
-    local list = VerticalGroup:new{ align = "left" }
-    local hits = {}
-    local cy = y
-    local function add(widget)
-        list[#list + 1] = widget
-        cy = cy + widget:getSize().h
-    end
-
-    for i, item in ipairs(spec) do
+    -- One item as { widgets = {...}, h = total height, row_h, on_tap }.
+    local function piece(i)
+        local item = spec[i]
         if item.section then
-            if i > 1 then add(VerticalSpan:new{ width = Screen:scaleBySize(10) }) end
-            add(FrameContainer:new{
+            local widgets = {}
+            if i > from then widgets[#widgets + 1] = VerticalSpan:new{ width = Screen:scaleBySize(10) } end
+            widgets[#widgets + 1] = FrameContainer:new{
                 bordersize = 0, padding = 0,
                 background = bandColor(),
                 KoboldWidgets.fixed(w, band_h, LeftContainer:new{
@@ -78,46 +78,68 @@ function KoboldSettingsList.build(spec, x, y, w)
                         },
                     },
                 }),
-            })
-        else
-            local text = VerticalGroup:new{
-                align = "left",
-                TextWidget:new{ text = item.title, face = KoboldWidgets.face(17), max_width = text_w },
             }
-            if item.desc then
-                text[#text + 1] = VerticalSpan:new{ width = Screen:scaleBySize(3) }
-                text[#text + 1] = TextBoxWidget:new{
-                    text = item.desc,
-                    face = KoboldWidgets.face(13),
-                    fgcolor = KoboldWidgets.subtitleColor(),
-                    width = text_w,
-                }
-            end
-            local value = TextWidget:new{
-                text = item.value or "",
-                face = item.action and actionFace(16) or KoboldWidgets.face(15),
-                max_width = value_w,
-            }
-            local h = math.max(text:getSize().h, value:getSize().h) + 2 * row_pad
-            local top = cy
-            add(HorizontalGroup:new{
-                LeftContainer:new{ dimen = Geom:new{ w = text_w, h = h }, text },
-                HorizontalSpan:new{ width = gap },
-                RightContainer:new{ dimen = Geom:new{ w = value_w, h = h }, value },
-            })
-            local nxt = spec[i + 1]
-            if nxt and not nxt.section then
-                add(LineWidget:new{
-                    dimen = Geom:new{ w = w, h = line_h },
-                    background = Blitbuffer.COLOR_LIGHT_GRAY,
-                })
-            end
-            if item.on_tap then
-                hits[#hits + 1] = { rect = Geom:new{ x = x, y = top, w = w, h = h }, on_tap = item.on_tap }
-            end
+            local h = band_h + (i > from and Screen:scaleBySize(10) or 0)
+            return { widgets = widgets, h = h, section = true }
         end
+        local text = VerticalGroup:new{
+            align = "left",
+            TextWidget:new{ text = item.title, face = KoboldWidgets.face(17), max_width = text_w },
+        }
+        if item.desc then
+            text[#text + 1] = VerticalSpan:new{ width = Screen:scaleBySize(3) }
+            text[#text + 1] = TextBoxWidget:new{
+                text = item.desc,
+                face = KoboldWidgets.face(13),
+                fgcolor = KoboldWidgets.subtitleColor(),
+                width = text_w,
+            }
+        end
+        local value = TextWidget:new{
+            text = item.value or "",
+            face = item.action and actionFace(16) or KoboldWidgets.face(15),
+            max_width = value_w,
+        }
+        local row_h = math.max(text:getSize().h, value:getSize().h) + 2 * row_pad
+        local widgets = { HorizontalGroup:new{
+            LeftContainer:new{ dimen = Geom:new{ w = text_w, h = row_h }, text },
+            HorizontalSpan:new{ width = gap },
+            RightContainer:new{ dimen = Geom:new{ w = value_w, h = row_h }, value },
+        } }
+        local h = row_h
+        local nxt = spec[i + 1]
+        if nxt and not nxt.section then
+            widgets[#widgets + 1] = LineWidget:new{
+                dimen = Geom:new{ w = w, h = line_h },
+                background = Blitbuffer.COLOR_LIGHT_GRAY,
+            }
+            h = h + line_h
+        end
+        return { widgets = widgets, h = h, row_h = row_h, on_tap = item.on_tap }
     end
-    return list, hits
+
+    local list = VerticalGroup:new{ align = "left" }
+    local hits = {}
+    local cy = y
+    local i = from
+    local next_index = nil
+    while i <= #spec do
+        local p = piece(i)
+        local need = p.h
+        -- A band needs the row after it on the same page.
+        if p.section and spec[i + 1] then need = need + piece(i + 1).h end
+        if opts.max_h and i > from and (cy - y) + need > opts.max_h then
+            next_index = i
+            break
+        end
+        if not p.section and p.on_tap then
+            hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = w, h = p.row_h }, on_tap = p.on_tap }
+        end
+        for _k, widget in ipairs(p.widgets) do list[#list + 1] = widget end
+        cy = cy + p.h
+        i = i + 1
+    end
+    return list, hits, next_index
 end
 
 -- The on_tap of the row under `pos`, or nil.

@@ -121,7 +121,7 @@ end
 function Kobold:addToMainMenu(menu_items)
     menu_items.kobold_home = {
         text = _("Kobold Home"),
-        sorting_hint = "more_tools",
+        sorting_hint = "tools",
         callback = function()
             self:showHome()
         end,
@@ -138,6 +138,16 @@ end
 -- optional saved state to restore and e-ink refresh type (see router.lua).
 -- Errors are shown, not raised.
 function Kobold:showTab(tab, state, refresh)
+    -- Opened over a book: close the book first, the way KOReader's Home
+    -- does. The file browser that replaces it opens Kobold (see init), and
+    -- Kobold then has the file browser's menus to work with.
+    local ReaderUI = package.loaded["apps/reader/readerui"]
+    if ReaderUI and ReaderUI.instance and ReaderUI.instance.onHome then
+        require("kobold.ui.session").rememberTab(tab, state)
+        local closed = pcall(function() ReaderUI.instance:onHome() end)
+        if closed then return true end
+        require("kobold.ui.session").take()
+    end
     local ok, err = pcall(function()
         require("kobold.ui.router").show(tab, nil, state, refresh)
     end)

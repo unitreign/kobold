@@ -34,6 +34,7 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local _               = require("gettext")
+local lfs             = require("libs/libkoreader-lfs")
 local KoboldCovers    = require("kobold.data.covers")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldLibrary   = require("kobold.data.library")
@@ -59,7 +60,17 @@ local TABS = {
     { id = "authors",     text = _("Authors") },
     { id = "series",      text = _("Series") },
     { id = "collections", text = _("Collections") },
+    { id = "files",       text = _("Files") },  -- only when on in Kobold Settings
 }
+
+-- Tabs shown: Files only when turned on in Kobold Settings.
+local function visibleTabs()
+    local out = {}
+    for _i, tab in ipairs(TABS) do
+        if tab.id ~= "files" or KoboldPrefs.get("files_tab") then out[#out + 1] = tab end
+    end
+    return out
+end
 
 local FILTER_LABELS = {
     all      = _("All"),
@@ -70,6 +81,7 @@ local FILTER_LABELS = {
 
 -- pill = short text on the Sort pill, menu = text in the Sort popup.
 local SORT_LABELS = {
+    opened_desc = { pill = _("Recent"),   menu = _("Last opened") },
     added_desc = { pill = _("Newest"),    menu = _("Date added: newest first") },
     added_asc  = { pill = _("Oldest"),    menu = _("Date added: oldest first") },
     title_asc  = { pill = _("Title A–Z"), menu = _("Title: A to Z") },
@@ -80,6 +92,8 @@ local GROUP_SORT_LABELS = {
     name_asc  = { pill = _("A–Z"), menu = _("Name: A to Z") },
     name_desc = { pill = _("Z–A"), menu = _("Name: Z to A") },
 }
+
+local fileChooser  -- defined with the book menu, used by the Files tab too
 
 local KoboldMyBooks = InputContainer:extend{
     -- Not modal: KOReader menus and dialogs (also non-modal) must be able to
@@ -239,6 +253,9 @@ function KoboldMyBooks:init()
     local one = TextBoxWidget:new{ text = "A", face = face_title, width = L.text_w }
     local author_h = TextWidget:new{ text = "Ag", face = KoboldWidgets.face(14) }:getSize().h
         + Screen:scaleBySize(4)
+    -- Room for the series line too (shown for books in a series).
+    author_h = author_h + TextWidget:new{ text = "AG", face = KoboldWidgets.face(12) }:getSize().h
+        + Screen:scaleBySize(2)
     L.title_max_h = two:getSize().h
     if L.title_max_h + author_h > L.row_h - 2 * L.row_pad then
         L.title_max_h = one:getSize().h
@@ -253,7 +270,7 @@ function KoboldMyBooks:init()
     -- zone that looks up what is under the finger when it fires.
     KoboldTaps.add(self, "KoboldTabs", 0, L.y_tabs, W, L.tabs_h, function(ges)
         local i = hitIndex(self.tab_hits, ges.pos)
-        if i then self:showTab(TABS[i].id) end
+        if i then self:showTab(visibleTabs()[i].id) end
     end)
     KoboldTaps.add(self, "KoboldPills", 0, L.y_pills, W, L.pills_h, function(ges)
         local i = hitIndex(self.pill_hits, ges.pos)
@@ -280,12 +297,16 @@ function KoboldMyBooks:init()
             handler = function(ges)
                 -- Like scrolling: swipe up for the next page, down for the
                 -- previous one. Sideways swipes do nothing.
+                -- Other directions (diagonals) are left for KOReader's own
+                -- gestures (see addScreenEvents).
                 local d = ges.direction
                 local grid = self:isGrid()
                 if d == "north" or (grid and d == "west") then
                     self:goToPage(self.page + 1)
                 elseif d == "south" or (grid and d == "east") then
                     self:goToPage(self.page - 1)
+                else
+                    return false
                 end
                 return true
             end,
@@ -306,6 +327,7 @@ function KoboldMyBooks:getReturnState()
         group_key = self.group and self.group.key,
         page = self.page,
         group_page = self.group_page,
+        folder = self.folder,
     }
 end
 
@@ -313,7 +335,7 @@ end
 -- clamped by applyList afterwards, in case the list got shorter.
 function KoboldMyBooks:restoreState(state)
     if type(state) ~= "table" then return end
-    for _i, tab in ipairs(TABS) do
+    for _i, tab in ipairs(visibleTabs()) do
         if tab.id == state.tab then self.tab = tab.id end
     end
     if self.tab ~= "books" and state.group_key then
@@ -321,13 +343,14 @@ function KoboldMyBooks:restoreState(state)
             if g.key == state.group_key then self.group = g break end
         end
     end
+    self.folder = type(state.folder) == "string" and state.folder or nil
     self.page = tonumber(state.page) or 1
     self.group_page = tonumber(state.group_page)
 end
 
 -- True on the Authors, Series and Collections lists (not inside a group).
 function KoboldMyBooks:showsGroups()
-    return self.tab ~= "books" and not self.group
+    return self.tab ~= "books" and self.tab ~= "files" and not self.group
 end
 
 -- Rows per page, slot height and row height for the current view. The
@@ -345,14 +368,17 @@ function KoboldMyBooks:perPage()
     return (self:rowSize())
 end
 
--- True on the Books tab when grid view is chosen.
+-- True on the Books and Series tabs when grid view is chosen. On Series it
+-- covers both the series list and the books of one series.
 function KoboldMyBooks:isGrid()
-    return self.tab == "books" and self.view == "grid"
+    return self.view == "grid" and (self.tab == "books" or self.tab == "series")
 end
 
 -- Recomputes the list for the current view and clamps the page to it.
 function KoboldMyBooks:applyList()
-    if self.tab == "books" then
+    if self.tab == "files" then
+        self.list = self:listFolder(self:currentFolder())
+    elseif self.tab == "books" then
         local list = KoboldMyBooksData.filter(self.books, self.filter)
         self.list = KoboldMyBooksData.sort(list, self.sort)
     elseif self.group then
@@ -375,7 +401,13 @@ function KoboldMyBooks:build()
         self.page_items[i] = self.list[first + i]
     end
     -- Book rows need their reading status; read it for this page only.
-    if not self:showsGroups() then KoboldMyBooksData.resolve(self.page_items) end
+    if not self:showsGroups() then
+        local books = {}
+        for _i, item in ipairs(self.page_items) do
+            if not item.is_dir then books[#books + 1] = item end
+        end
+        KoboldMyBooksData.resolve(books)
+    end
 
     local body = FrameContainer:new{
         width = L.W, bordersize = 0, padding = L.margin, padding_bottom = 0,
@@ -464,7 +496,7 @@ function KoboldMyBooks:buildTabs()
     local row = HorizontalGroup:new{}
     local x = L.margin
     self.tab_hits = {}
-    for i, tab in ipairs(TABS) do
+    for i, tab in ipairs(visibleTabs()) do
         local selected = tab.id == self.tab
         local text = TextWidget:new{ text = tab.text, face = KoboldWidgets.face(17), bold = selected }
         local w = text:getSize().w
@@ -530,7 +562,17 @@ function KoboldMyBooks:buildPills()
     local L = self.L
     local icon_size = Screen:scaleBySize(18)
     local specs
-    if self.tab == "books" then
+    if self.tab == "files" then
+        -- Back pill to the parent folder, also above the home folder; at
+        -- the top of the file system a plain label.
+        local dir = self:currentFolder()
+        local name = dir:match("([^/]+)/*$") or dir
+        if dir == "/" then
+            specs = { { label = name, plain = true, action = function() end } }
+        else
+            specs = { { label = name, back = true, action = function() self:openFolder(self:parentFolder()) end } }
+        end
+    elseif self.tab == "books" then
         specs = {
             { label = _("Filter: ") .. FILTER_LABELS[self.filter], action = function() self:showFilterDialog() end },
             { label = _("Sort: ") .. SORT_LABELS[self.sort].pill, action = function() self:showSortDialog() end },
@@ -551,11 +593,15 @@ function KoboldMyBooks:buildPills()
     self.pill_hits, self.pill_actions = {}, {}
     for i, spec in ipairs(specs) do
         local pill, w
-        if spec.back then
+        if spec.plain then
+            pill, w = self:buildPill(spec.label,
+                KoboldWidgets.icon("home", icon_size, { fallback = "appbar.filebrowser" }), true,
+                L.content_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6))
+        elseif spec.back then
             -- Back pill: left chevron and the group's name, cut to fit.
             local max_text = L.content_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6)
-            if self.tab == "collections" then
-                max_text = max_text - Screen:scaleBySize(26) - 3 * L.pill_gap
+            if self.tab == "collections" or self.tab == "series" then
+                max_text = max_text - Screen:scaleBySize(40) - 3 * L.pill_gap
             end
             pill, w = self:buildPill(spec.label, KoboldWidgets.icon("chevron.left", icon_size), true, max_text)
         else
@@ -568,8 +614,8 @@ function KoboldMyBooks:buildPills()
         x = x + w + L.pill_gap
     end
 
-    -- Books tab: "..." at the right end, for list or grid view.
-    if self.tab == "books" then
+    -- Books and Series tabs: "..." at the right end, for list or grid view.
+    if self.tab == "books" or self.tab == "series" then
         local dots = TextWidget:new{ text = "…", face = KoboldWidgets.face(20), bold = true }
         local dots_w = dots:getSize().w
         -- Kept a little in from the right edge.
@@ -673,9 +719,13 @@ end
 
 -- Long-press on the Collections list: that collection's options.
 function KoboldMyBooks:onListHold(pos)
-    if self.tab ~= "collections" or self.group then return end
     local item = self:itemAt(pos)
-    if item then self:showCollectionOptions(item) end
+    if not item then return end
+    if self.tab == "files" then
+        if item.is_dir then self:showFolderMenu(item.path) else self:showBookMenu(item.file) end
+    elseif self.tab == "collections" and not self.group then
+        self:showCollectionOptions(item)
+    end
 end
 
 -- Options for one collection, like KOReader's long-press menu on its
@@ -877,6 +927,26 @@ end
 
 -- One book row: cover, title over authors, and status over format and size
 -- on the right, with the "…" menu button under them. Exactly row_h tall.
+local SERIES_MAX_CHARS = 26
+
+-- "NAME - N" for the series line, the name cut after SERIES_MAX_CHARS.
+local function seriesLine(item)
+    local util = require("util")
+    local name = item.series:upper()
+    local chars = util.splitToChars and util.splitToChars(name) or nil
+    if chars and #chars > SERIES_MAX_CHARS then
+        name = table.concat(chars, "", 1, SERIES_MAX_CHARS):gsub("%s+$", "") .. "..."
+    elseif not chars and #name > SERIES_MAX_CHARS then
+        name = name:sub(1, SERIES_MAX_CHARS) .. "..."
+    end
+    if item.series_index then
+        local n = item.series_index
+        if n == math.floor(n) then n = math.floor(n) end
+        name = name .. " - " .. tostring(n)
+    end
+    return name
+end
+
 function KoboldMyBooks:buildBookRow(item)
     local L = self.L
     local face_title = KoboldWidgets.face(17)
@@ -892,6 +962,16 @@ function KoboldMyBooks:buildBookRow(item)
     end
 
     local middle = VerticalGroup:new{ align = "left", title }
+    -- Series under the title, in small capitals: the name cut short, then
+    -- its number ("THE SAGA OF TANYA... - 1").
+    if item.series then
+        middle[#middle + 1] = VerticalSpan:new{ width = Screen:scaleBySize(2) }
+        middle[#middle + 1] = TextWidget:new{
+            text = seriesLine(item),
+            face = KoboldWidgets.face(12),
+            max_width = L.text_w,
+        }
+    end
     if item.authors then
         middle[#middle + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
         middle[#middle + 1] = TextWidget:new{
@@ -980,6 +1060,7 @@ end
 
 -- Message shown when the current view has nothing to list.
 function KoboldMyBooks:emptyText()
+    if self.tab == "files" then return _("This folder is empty.") end
     if self.tab == "books" then
         if self.filter == "all" then return _("No books found in your home folder.") end
         return _("No books match this filter.")
@@ -1011,7 +1092,13 @@ function KoboldMyBooks:buildList()
     local used = 0
     local count = #self.page_items
     for i, item in ipairs(self.page_items) do
-        list[#list + 1] = groups and self:buildGroupRow(item) or self:buildBookRow(item)
+        if groups then
+            list[#list + 1] = self:buildGroupRow(item)
+        elseif item.is_dir then
+            list[#list + 1] = self:buildFolderRow(item)
+        else
+            list[#list + 1] = self:buildBookRow(item)
+        end
         used = used + slot_h - L.line_h
         -- No separator under the last row of the page.
         if i < count then
@@ -1066,20 +1153,32 @@ function KoboldMyBooks:buildGrid()
             if c > 1 then row[#row + 1] = HorizontalSpan:new{ width = L.grid_gap_x } end
             if item then
                 any = true
-                local _sw, sh = KoboldWidgets.coverSize(item.file, L.grid_cell_w, L.grid_cover_h)
+                -- A series shows its first book's cover, its name and count;
+                -- a book its status and "...".
+                local is_group = item.books ~= nil
+                local file = is_group and item.books[1] and item.books[1].file or item.file
+                local _sw, sh = KoboldWidgets.coverSize(file, L.grid_cell_w, L.grid_cover_h)
+                local line1, line2
+                if is_group then
+                    line1 = TextWidget:new{ text = item.name, face = KoboldWidgets.face(14), max_width = L.grid_cell_w }
+                    line2 = TextWidget:new{
+                        text = countText(#item.books), face = KoboldWidgets.face(13),
+                        fgcolor = KoboldWidgets.subtitleColor(), max_width = L.grid_cell_w,
+                    }
+                else
+                    line1 = TextWidget:new{ text = statusText(item), face = KoboldWidgets.face(14), max_width = L.grid_cell_w }
+                    line2 = TextWidget:new{ text = "…", face = KoboldWidgets.face(18), bold = true }
+                end
                 row[#row + 1] = VerticalGroup:new{
                     align = "left",
                     KoboldWidgets.fixed(L.grid_cell_w, L.grid_cover_h, VerticalGroup:new{
                         align = "left",
-                        VerticalSpan:new{ width = L.grid_cover_h - sh },
-                        KoboldWidgets.makeCover(item.file, L.grid_cell_w, L.grid_cover_h),
+                        VerticalSpan:new{ width = (sh and L.grid_cover_h - sh) or 0 },
+                        KoboldWidgets.makeCover(file, L.grid_cell_w, L.grid_cover_h),
                     }),
                     VerticalSpan:new{ width = L.grid_text_gap },
-                    TextWidget:new{
-                        text = statusText(item), face = KoboldWidgets.face(14),
-                        max_width = L.grid_cell_w,
-                    },
-                    TextWidget:new{ text = "…", face = KoboldWidgets.face(18), bold = true },
+                    line1,
+                    line2,
                 }
             else
                 row[#row + 1] = HorizontalSpan:new{ width = L.grid_cell_w }
@@ -1143,10 +1242,12 @@ function KoboldMyBooks:onGridTap(pos)
     if in_x > L.grid_cell_w or in_y > L.grid_cell_h then return end
     local item = self.page_items[row * L.grid_cols + col + 1]
     if not item then return end
-    if in_y >= L.grid_cover_h + L.grid_text_gap + L.grid_status_h then
+    if item.books then
+        self:openGroup(item)
+    elseif in_y >= L.grid_cover_h + L.grid_text_gap + L.grid_status_h then
         self:showBookMenu(item.file)
     else
-        KoboldReader.open(self, item.file)
+        KoboldReader.tapOpen(self, item.file)
     end
 end
 
@@ -1169,7 +1270,9 @@ function KoboldMyBooks:onListTap(pos)
     local i = math.floor((pos.y - L.y_list) / slot_h) + 1
     local item = self.page_items and self.page_items[i]
     if not item then return end
-    if groups then
+    if item.is_dir then
+        self:openFolder(item.path)
+    elseif groups then
         self:openGroup(item)
     elseif pos.x >= L.margin + L.list_w - L.dots_w then
         if self.tab == "collections" and self.group then
@@ -1178,7 +1281,7 @@ function KoboldMyBooks:onListTap(pos)
             self:showBookMenu(item.file)
         end
     else
-        KoboldReader.open(self, item.file)
+        KoboldReader.tapOpen(self, item.file)
     end
 end
 
@@ -1197,6 +1300,129 @@ function KoboldMyBooks:goToPage(page)
     if page == self.page then return end
     self.page = page
     self:refreshList()
+end
+
+-- Files tab ------------------------------------------------------------
+
+-- The home folder set in KOReader (where the library lives).
+function KoboldMyBooks:filesRoot()
+    local home = G_reader_settings and G_reader_settings:readSetting("home_dir")
+    if home and lfs.attributes(home, "mode") == "directory" then return (home:gsub("/+$", "")) end
+    return "/"
+end
+
+function KoboldMyBooks:currentFolder()
+    local dir = self.folder
+    if not dir or lfs.attributes(dir, "mode") ~= "directory" then dir = self:filesRoot() end
+    if dir ~= "/" then dir = dir:gsub("/+$", "") end
+    self.folder = dir
+    return dir
+end
+
+function KoboldMyBooks:parentFolder()
+    local dir = self:currentFolder()
+    local parent = dir:match("^(.*)/[^/]+/*$")
+    if not parent or parent == "" then parent = "/" end
+    return parent
+end
+
+-- Entries of folder `dir`: subfolders, then books KOReader can open, each
+-- sorted by name. Hidden files and book data folders (.sdr) are left out.
+-- Books use the library's entries when known, so status and covers match.
+function KoboldMyBooks:listFolder(dir)
+    local DocumentRegistry = require("document/documentregistry")
+    local by_file = {}
+    for _i, b in ipairs(self.books) do by_file[b.file] = b end
+    local dirs, files = {}, {}
+    local ok, iter, state = pcall(lfs.dir, dir)
+    if not ok then return {} end
+    for name in iter, state do
+        if name:sub(1, 1) ~= "." and not name:match("%.sdr$") then
+            local path = (dir == "/" and "" or dir) .. "/" .. name
+            local attr = lfs.attributes(path)
+            if attr and attr.mode == "directory" then
+                dirs[#dirs + 1] = { is_dir = true, path = path, name = name }
+            elseif attr and attr.mode == "file" and DocumentRegistry:hasProvider(path) then
+                files[#files + 1] = by_file[path] or {
+                    file = path, mtime = attr.modification or 0, size = attr.size,
+                    title = name:gsub("%.[^%.]+$", ""), title_from_file = true,
+                    sort_key = name:lower(), author_list = {},
+                    ext = (name:match("%.([^%.]+)$") or ""):upper(),
+                }
+            end
+        end
+    end
+    table.sort(dirs, function(a, b) return a.name:lower() < b.name:lower() end)
+    table.sort(files, function(a, b) return (a.file:match("[^/]+$") or ""):lower() < (b.file:match("[^/]+$") or ""):lower() end)
+    for _i, f in ipairs(files) do dirs[#dirs + 1] = f end
+    return dirs
+end
+
+-- Shows folder `dir`; the page of the folder being left is remembered for
+-- coming back to it.
+function KoboldMyBooks:openFolder(dir)
+    self.folder_pages = self.folder_pages or {}
+    self.folder_pages[self:currentFolder()] = self.page
+    self.folder = dir
+    self.page = self.folder_pages[dir] or 1
+    self:applyList()
+    self:refresh()
+end
+
+-- KOReader's long-press menu for a folder (rename, delete, cut, copy, set as
+-- home, ...). Changes it makes refresh the file browser, which reloads this
+-- list through hookFileManager.
+function KoboldMyBooks:showFolderMenu(dir)
+    local fc = fileChooser()
+    local show = fc and fc.showFileDialog
+    local ok = false
+    if show then
+        ok = pcall(show, fc, { path = dir, is_file = false, text = (dir:match("[^/]+$") or dir) .. "/" })
+    end
+    if not ok then
+        UIManager:show(InfoMessage:new{ text = _("The folder menu is not available.") })
+    end
+end
+
+-- A folder row: folder icon, name, and how many items are inside.
+function KoboldMyBooks:buildFolderRow(item)
+    local L = self.L
+    local _n, _slot, row_h = self:rowSize()
+    local count = 0
+    local ok, iter, state = pcall(lfs.dir, item.path)
+    if ok then
+        for name in iter, state do
+            if name:sub(1, 1) ~= "." and not name:match("%.sdr$") then count = count + 1 end
+        end
+    end
+    local icon_size = math.floor(L.thumb_w * 0.8)
+    local text_w = L.list_w - L.thumb_w - 3 * L.col_gap - L.chevron
+    return HorizontalGroup:new{
+        CenterContainer:new{
+            dimen = Geom:new{ w = L.thumb_w, h = row_h },
+            KoboldWidgets.icon("folder", icon_size, { fallback = "appbar.filebrowser" }),
+        },
+        HorizontalSpan:new{ width = L.col_gap },
+        LeftContainer:new{
+            dimen = Geom:new{ w = text_w, h = row_h },
+            VerticalGroup:new{
+                align = "left",
+                TextWidget:new{ text = item.name, face = KoboldWidgets.face(17), max_width = text_w },
+                VerticalSpan:new{ width = Screen:scaleBySize(4) },
+                TextWidget:new{
+                    text = count == 1 and _("1 item") or string.format(_("%d items"), count),
+                    face = KoboldWidgets.face(14),
+                    fgcolor = KoboldWidgets.subtitleColor(),
+                    max_width = text_w,
+                },
+            },
+        },
+        HorizontalSpan:new{ width = L.col_gap },
+        CenterContainer:new{
+            dimen = Geom:new{ w = L.chevron, h = row_h },
+            KoboldWidgets.icon("chevron.right", L.chevron),
+        },
+    }
 end
 
 function KoboldMyBooks:showTab(id)
@@ -1282,7 +1508,7 @@ function KoboldMyBooks:showGroupSortDialog()
         function(id) self:setChoice("group_sort", GROUP_SORT_KEY, id) end)
 end
 
-local function fileChooser()
+fileChooser = function()
     local ok, FileManager = pcall(require, "apps/filemanager/filemanager")
     local fm = ok and FileManager and FileManager.instance
     return fm and fm.file_chooser
