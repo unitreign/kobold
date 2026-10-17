@@ -563,6 +563,19 @@ local function cornerIsSet(name)
     return false
 end
 
+-- True when one of the screen's own tap or hold zones (status bar icons,
+-- tabs, pills, rows, the nav bar) is under the gesture. Such taps are
+-- always Kobold's, whatever KOReader has set for that corner.
+local function koboldControlAt(screen, ev)
+    local ok, found = pcall(function()
+        for _i, zone in ipairs(screen._ordered_touch_zones or {}) do
+            if zone.gs_range and zone.gs_range:match(ev) then return true end
+        end
+        return false
+    end)
+    return ok and found
+end
+
 function KoboldWidgets.addScreenEvents(ScreenClass)
     -- KOReader's own gestures (the Gestures plugin: edge swipes, diagonal
     -- and two-finger gestures, multiswipes, ...) live on the file browser
@@ -575,7 +588,8 @@ function KoboldWidgets.addScreenEvents(ScreenClass)
     function ScreenClass:onGesture(ev)
         local InputContainer = require("ui/widget/container/inputcontainer")
         if isEdgeSwipe(ev) and forwardGesture(ev) then return true end
-        if cornerIsSet(cornerGesture(ev)) and forwardGesture(ev) then return true end
+        if cornerIsSet(cornerGesture(ev)) and not koboldControlAt(self, ev)
+            and forwardGesture(ev) then return true end
         if InputContainer.onGesture(self, ev) then return true end
         return forwardGesture(ev)
     end
