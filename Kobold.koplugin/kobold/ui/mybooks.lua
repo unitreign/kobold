@@ -1,5 +1,5 @@
 -- kobold/ui/mybooks.lua — Kobold
--- My Books screen, laid out like the Kobo library: the shared status bar, the
+-- My Books screen, laid out like the e-reader's own library: the shared status bar, the
 -- Books / Authors / Series / Collections tabs over a light rule, a row of
 -- pills, then a page of rows with a thin separator under each. Swipe the list
 -- up or down, or use the side bar, to move through the list. Bottom nav is shared with the other

@@ -1,5 +1,5 @@
 -- kobold/ui/more.lua — Kobold
--- More screen, laid out like the Kobo More tab: the shared status bar, the
+-- More screen, laid out like the e-reader's own More tab: the shared status bar, the
 -- "More" title, then rows with a thin separator under each. Exit Kobold is the
 -- last row. Bottom nav is shared with the other screens.
 
