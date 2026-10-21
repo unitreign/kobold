@@ -177,7 +177,7 @@ function KoboldBrightness:build()
         background = Blitbuffer.COLOR_WHITE,
         sections,
     }
-    return KoboldPopup.place(self.dimen, fx, fy, box)
+    return KoboldPopup.place(self.dimen, fx, fy, box, KoboldPopup.anchor("brightness"))
 end
 
 function KoboldBrightness:init()

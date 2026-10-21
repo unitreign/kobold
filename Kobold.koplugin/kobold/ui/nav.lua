@@ -19,11 +19,12 @@ local Screen = Device.screen
 
 local KoboldNav = {}
 
--- `fallback` is used when the icon file is missing from this KOReader build.
+-- `icon` is one of Kobold's own icons; `fallback` is the KOReader icon used
+-- when that file is missing.
 local TABS = {
-    { id = "home",  text = "Home",     icon = "home",              event = "NavHome" },
-    { id = "books", text = "My Books", icon = "library", fallback = "appbar.filebrowser", event = "NavBooks" },
-    { id = "more",  text = "More",     icon = "appbar.menu",       event = "NavMore" },
+    { id = "home",  text = "Home",     icon = "home",     fallback = "home",      event = "NavHome" },
+    { id = "books", text = "My Books", icon = "my-books", fallback = "library",   event = "NavBooks" },
+    { id = "more",  text = "More",     icon = "more",     fallback = "appbar.menu", event = "NavMore" },
 }
 
 function KoboldNav.height()
@@ -58,7 +59,7 @@ function KoboldNav.attach(screen, W, H, active)
             CenterContainer:new{
                 dimen = Geom:new{ w = tab_w, h = nav_h - bar_h },
                 VerticalGroup:new{
-                    KoboldWidgets.icon(tab.icon, Screen:scaleBySize(24), { fallback = tab.fallback }),
+                    KoboldWidgets.customIcon(tab.icon, Screen:scaleBySize(24), tab.fallback),
                     VerticalSpan:new{ width = Screen:scaleBySize(3) },
                     TextWidget:new{
                         text = tab.text,

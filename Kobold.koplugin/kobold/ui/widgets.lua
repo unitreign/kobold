@@ -146,6 +146,23 @@ end
 --   fallback = icon used instead when `name` does not exist
 -- Icons are drawn with alpha: IconWidget's default (alpha = false) flattens
 -- the SVG onto white, which shows as a white box on the gray pills.
+-- One of Kobold's own icons (icons/<name>.svg in the plugin). Drawn as a
+-- KOReader icon, so night mode turns it white on black like KOReader's
+-- own. Falls back to KOReader icon `fallback` when the file is missing.
+function KoboldWidgets.customIcon(name, size, fallback)
+    local path = KoboldMeta.icon(name .. ".svg")
+    if path and lfs.attributes(path, "mode") == "file" then
+        local ok, widget = pcall(function()
+            return IconWidget:new{
+                file = path, width = size, height = size,
+                alpha = true, original_in_nightmode = false,
+            }
+        end)
+        if ok and widget then return widget end
+    end
+    return KoboldWidgets.icon(fallback or name, size)
+end
+
 function KoboldWidgets.icon(name, size, opts)
     opts = opts or {}
     if opts.fallback and not KoboldWidgets.hasIcon(name) then name = opts.fallback end
@@ -321,14 +338,24 @@ function KoboldWidgets.subtitleColor()
     return Blitbuffer.COLOR_DARK_GRAY
 end
 
--- Wi-Fi icon: wifi.open.100 when Wi-Fi is on, wifi.open.0 otherwise.
--- Only the on/off state is read from NetworkMgr; signal levels are not shown.
+-- Name of Kobold's Wi-Fi icon for the current state: wifi-off when Wi-Fi is
+-- off, wifi-disconnected when on but not connected, otherwise the signal:
+-- wifi-weak, wifi-medium or wifi-strong (strong when the device does not
+-- report it).
 function KoboldWidgets.wifiIconName()
     local ok, NetworkMgr = pcall(require, "ui/network/manager")
-    if not ok or not NetworkMgr then return "wifi.open.0" end
-    local ok_on, on = pcall(function() return NetworkMgr:isWifiOn() end)
-    if ok_on and on then return "wifi.open.100" end
-    return "wifi.open.0"
+    if not ok or not NetworkMgr then return "wifi-off" end
+    local function ask(method)
+        local ok_m, v = pcall(function() return NetworkMgr[method](NetworkMgr) end)
+        return ok_m and v or nil
+    end
+    if not ask("isWifiOn") then return "wifi-off" end
+    if not ask("isConnected") then return "wifi-disconnected" end
+    local network = ask("getCurrentNetwork")
+    local q = type(network) == "table" and tonumber(network.signal_quality)
+    if q and q < 40 then return "wifi-weak" end
+    if q and q < 70 then return "wifi-medium" end
+    return "wifi-strong"
 end
 
 local STATUS_ICON = 26  -- status bar icon size, before screen scaling
@@ -351,13 +378,13 @@ function KoboldWidgets.statusBar(content_w)
     local time_text = TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }
     local widths, size, gap, style = statusIconWidths()
     local icons = HorizontalGroup:new{
-        KoboldWidgets.icon("appbar.contrast", size),
+        KoboldWidgets.customIcon("brightness", size, "appbar.contrast"),
         HorizontalSpan:new{ width = gap },
-        KoboldWidgets.icon(KoboldWidgets.wifiIconName(), size),
+        KoboldWidgets.customIcon(KoboldWidgets.wifiIconName(), size, "wifi.open.100"),
         HorizontalSpan:new{ width = gap },
         KoboldBattery:new{ size = widths[3], slot_h = size, style = style },
         HorizontalSpan:new{ width = gap },
-        KoboldWidgets.icon("lookup.search", size, { fallback = "appbar.search" }),
+        KoboldWidgets.customIcon("search", size, "appbar.search"),
     }
     local spacer = content_w - time_text:getSize().w - icons:getSize().w
     return HorizontalGroup:new{
@@ -414,9 +441,14 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
     }
     for i, action in ipairs(actions) do
         local x, icon_w, icon_gap = statusIconX(margin, content_w, i)
+        -- Where the popups' arrows point.
+        require("kobold.ui.popup").setAnchor(({ "brightness", "wifi", "battery", "search" })[i],
+            math.floor(x + icon_w / 2))
         KoboldTaps.add(screen, "KoboldStatusIcon" .. i, math.floor(x - icon_gap / 2), margin,
             icon_w + icon_gap, status_h, action)
     end
+    require("kobold.ui.popup").setAnchor("clock", margin + math.floor(
+        TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }:getSize().w / 2))
     -- The clock (left third of the bar): tap for the 12/24-hour popup.
     KoboldTaps.add(screen, "KoboldClockTap", margin, margin, math.floor(content_w / 3), status_h,
         function() require("kobold.ui.clock_popup").show() end)
@@ -437,6 +469,30 @@ function KoboldWidgets.refreshStatusBar(screen)
     if not s then return end
     s.frame[1] = KoboldWidgets.statusBar(s.dimen.w)
     UIManager:setDirty(screen, function() return "ui", s.dimen end)
+end
+
+-- KOReader's book menu for `file`: the dialog the file browser shows on a
+-- long-press (book status, delete, book information, and so on), opened on
+-- top of the Kobold screen. `on_change`, when given, runs once after the
+-- menu changed something (the file browser refreshes its list then).
+-- False when the file browser is not there to provide it.
+function KoboldWidgets.showBookMenu(file, on_change)
+    local FileManager = package.loaded["apps/filemanager/filemanager"]
+    local fc = FileManager and FileManager.instance and FileManager.instance.file_chooser
+    local show = fc and (fc.showFileDialog or fc.onFileHold)
+    if not show then return false end
+    if on_change and fc.refreshPath then
+        local own = rawget(fc, "refreshPath")
+        local orig = fc.refreshPath
+        fc.refreshPath = function(...)
+            fc.refreshPath = own  -- once only; nil restores the class method
+            local result = orig(...)
+            UIManager:nextTick(on_change)
+            return result
+        end
+    end
+    local item = { path = file, file = file, is_file = true, text = file:match("[^/]+$") }
+    return (pcall(show, fc, item))
 end
 
 -- Debug mode: saves the screen as it is, through KOReader's own
@@ -628,9 +684,10 @@ function KoboldWidgets.addScreenEvents(ScreenClass)
         KoboldWidgets.refreshStatusBar(self)
         UIManager:scheduleIn(2, function() KoboldWidgets.refreshStatusBar(self) end)
     end
+    -- A book is opening (from Kobold or elsewhere): park this screen under
+    -- the reader instead of closing it (see session.lua).
     function ScreenClass:onShowingReader()
         require("kobold.ui.session").rememberScreen(self)
-        UIManager:close(self)
     end
 end
 

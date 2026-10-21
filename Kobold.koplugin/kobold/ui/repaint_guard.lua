@@ -19,17 +19,21 @@ local function isKoboldScreen(w)
     return w and w.covers_fullscreen and type(w.name) == "string" and w.name:sub(1, 7) == "kobold_"
 end
 
--- True when `widget` is a window in the stack with a full-screen Kobold
--- screen above it.
+-- True when `widget` is a window in the stack that is fully covered: any
+-- window under a full-screen Kobold screen, or a Kobold screen parked under
+-- the reader (or another full-screen window) while a book is open.
 local function hiddenUnderKobold(widget)
     if type(widget) ~= "table" then return false end
     local stack = UIManager._window_stack
     if type(stack) ~= "table" then return false end
-    local kobold_above = false
+    local kobold_above, fullscreen_above = false, false
     for i = #stack, 1, -1 do
         local w = stack[i].widget
-        if w == widget then return kobold_above end
+        if w == widget then
+            return kobold_above or (isKoboldScreen(widget) and fullscreen_above)
+        end
         if isKoboldScreen(w) then kobold_above = true end
+        if w and w.covers_fullscreen then fullscreen_above = true end
     end
     return false  -- not a window (a part of one): leave it alone
 end

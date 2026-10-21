@@ -59,6 +59,31 @@ function KoboldHomeData.getLatestRead()
 end
 
 -- A random KOReader collection (ReadCollection), or nil when none exist.
+local right_pick = nil  -- { right = the right column data }, see getHomeData
+
+-- True when every book in the kept pick still exists, and its collection
+-- (if any) still holds them.
+local function stillValid(pick, all_files)
+    local right = pick.right
+    if right.collection then
+        local ok, RC = pcall(require, "readcollection")
+        local coll = ok and RC and RC.coll and RC.coll[right.collection]
+        if not coll then return false end
+        for _i, f in ipairs(right.files) do
+            if not coll[f] or lfs.attributes(f, "mode") ~= "file" then return false end
+        end
+        return #right.files > 0
+    end
+    local all = {}
+    for _i, f in ipairs(all_files) do all[f] = true end
+    for _i, f in ipairs(right.files) do
+        if not all[f] then return false end
+    end
+    return true
+end
+
+local finishHomeData
+
 local function getRandomCollection()
     local ok, RC = pcall(require, "readcollection")
     if not ok or not RC or not RC.coll then return nil end
@@ -119,6 +144,15 @@ function KoboldHomeData.getHomeData()
     local my_set = {}
     for _, f in ipairs(my_books) do my_set[f] = true end
 
+    -- The random pick is kept for the whole KOReader session, so Home does
+    -- not change under the reader's eyes each time a book closes. It is
+    -- picked again only when its collection or books are gone.
+    if right_pick and stillValid(right_pick, all_files) then
+        local data_right = right_pick.right
+        if not data_right.collection then data_right.subtitle = #all_files .. " BOOKS" end
+        return finishHomeData(t, all_files, my_books, data_right)
+    end
+
     local right
     local coll = getRandomCollection()
     if coll then
@@ -136,6 +170,12 @@ function KoboldHomeData.getHomeData()
         }
     end
 
+    right_pick = { right = right }
+    return finishHomeData(t, all_files, my_books, right)
+end
+
+-- The rest of the Home data around the right column `right`.
+finishHomeData = function(t, all_files, my_books, right)
     local data = {
         reading = KoboldHomeData.getCurrentlyReading(4),
         latest = KoboldHomeData.getLatestRead(),

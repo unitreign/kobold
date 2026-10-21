@@ -202,6 +202,12 @@ function KoboldMore:restartKobold()
     end)
 end
 
+-- Back from a book on a parked screen (session.lua): update the clock,
+-- Wi-Fi and battery in the status bar.
+function KoboldMore:onKoboldReturn()
+    KoboldWidgets.refreshStatusBar(self)
+end
+
 -- Closes Kobold and returns to KOReader's file browser.
 function KoboldMore:exitKobold()
     UIManager:close(self)
