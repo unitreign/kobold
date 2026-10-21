@@ -76,7 +76,7 @@ function KoboldClockPopup:build()
         x = fx + border + pad, y = fy + border + pad + time:getSize().h + gap,
         w = inner, h = row_h,
     }
-    return KoboldPopup.place(self.dimen, fx, fy, box)
+    return KoboldPopup.place(self.dimen, fx, fy, box, KoboldPopup.anchor("clock"))
 end
 
 function KoboldClockPopup:init()

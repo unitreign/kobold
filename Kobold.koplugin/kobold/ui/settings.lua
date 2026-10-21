@@ -14,6 +14,7 @@ local InfoMessage     = require("ui/widget/infomessage")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local InputContainer  = require("ui/widget/container/inputcontainer")
+local LeftContainer   = require("ui/widget/container/leftcontainer")
 local OverlapGroup    = require("ui/widget/overlapgroup")
 local RightContainer  = require("ui/widget/container/rightcontainer")
 local TextWidget      = require("ui/widget/textwidget")
@@ -24,6 +25,7 @@ local _               = require("gettext")
 local KoboldCovers    = require("kobold.data.covers")
 local KoboldLibrary   = require("kobold.data.library")
 local KoboldPrefs     = require("kobold.data.prefs")
+local KoboldPopup     = require("kobold.ui.popup")
 local KoboldEditors   = require("kobold.ui.editors")
 local KoboldSettingsList = require("kobold.ui.settings_list")
 local KoboldStatsSettings = require("kobold.ui.stats_settings")
@@ -37,7 +39,7 @@ local TAP_LABELS = { koreader = _("KOReader default"), single = _("Single tap"),
 
 local KoboldSettings = InputContainer:extend{
     -- Not modal: its editors and the stats popup open on top of it.
-    covers_fullscreen = true,
+    -- A panel over the screen it was opened from, not a full screen.
     name = "kobold_settings",
 }
 
@@ -101,6 +103,15 @@ function KoboldSettings:spec()
             end,
         },
         {
+            title = _("Opening and closing panel"),
+            desc = _("Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."),
+            value = KoboldPrefs.get("transition") == true and _("On") or _("Off"),
+            on_tap = function()
+                KoboldPrefs.set("transition", KoboldPrefs.get("transition") ~= true or nil)
+                done()
+            end,
+        },
+        {
             title = _("Files tab"),
             desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
             value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
@@ -148,99 +159,89 @@ function KoboldSettings:spec()
     }
 end
 
+-- The panel: a bordered box inset from the screen edges, like the
+-- e-reader's settings. The screen it was opened from shows around it.
 function KoboldSettings:build()
-    local W, H = Screen:getWidth(), Screen:getHeight()
-    local margin    = Screen:scaleBySize(30)
-    local content_w = W - 2 * margin
-    local top_h     = Screen:scaleBySize(44)
-    local head_gap  = Screen:scaleBySize(10)
-    local head_h    = Screen:scaleBySize(48)
-    local close_sz  = Screen:scaleBySize(28)
+    local R = KoboldPopup.panelRect()
+    local border    = Screen:scaleBySize(2)
+    local pad       = Screen:scaleBySize(20)
+    local inner_w   = R.w - 2 * (border + pad)
+    local inner_h   = R.h - 2 * (border + pad)
+    local x0, y0    = R.x + border + pad, R.y + border + pad
+    local top_h     = Screen:scaleBySize(40)
+    local head_h    = Screen:scaleBySize(8)   -- small gap under the top bar
+    local close_sz  = Screen:scaleBySize(26)
+    local bar_w     = Screen:scaleBySize(24)
+    local bar_gap   = Screen:scaleBySize(12)
 
-    local footer_h  = Screen:scaleBySize(44)
-
-    -- The list is split into pages that fit the screen; page_starts holds
-    -- the first item of each page.
-    local list_y = margin + top_h + head_gap + head_h
-    local max_h = H - list_y - footer_h - Screen:scaleBySize(10)
+    -- Pages that fit the panel; page_starts holds each page's first item.
+    -- With one page the rows use the full width, the same padding on both
+    -- sides; with more, the side bar takes the right edge.
+    local list_y = y0 + top_h + head_h
+    local max_h  = inner_h - top_h - head_h
     local spec = self:spec()
-    self.page_starts = { 1 }
-    while true do
-        local _l, _h, nxt = KoboldSettingsList.build(spec, margin, list_y, content_w,
-            { from = self.page_starts[#self.page_starts], max_h = max_h })
-        if not nxt then break end
-        self.page_starts[#self.page_starts + 1] = nxt
+    local list_w
+    local function paginate(w)
+        local starts = { 1 }
+        while true do
+            local _l, _h, nxt = KoboldSettingsList.build(spec, x0, list_y, w,
+                { from = starts[#starts], max_h = max_h })
+            if not nxt then break end
+            starts[#starts + 1] = nxt
+        end
+        return starts
+    end
+    self.page_starts = paginate(inner_w)
+    list_w = inner_w
+    if #self.page_starts > 1 then
+        list_w = inner_w - bar_w - bar_gap
+        self.page_starts = paginate(list_w)
     end
     self.pages = #self.page_starts
     self.page = math.max(1, math.min(self.page or 1, self.pages))
-    local list, hits = KoboldSettingsList.build(spec, margin, list_y, content_w,
+    local list, hits = KoboldSettingsList.build(spec, x0, list_y, list_w,
         { from = self.page_starts[self.page], max_h = max_h })
     self.hits = hits
-    self.footer_y = H - footer_h
 
-    -- Page footer, only when there is more than one page.
-    local footer = VerticalSpan:new{ width = 0 }
-    if self.pages > 1 then
-        local icon_size = Screen:scaleBySize(24)
-        local label = TextWidget:new{
-            text = string.format(_("Page %d of %d"), self.page, self.pages),
-            face = KoboldWidgets.face(14), fgcolor = KoboldWidgets.subtitleColor(),
-        }
-        local spacer = math.max(0, math.floor((content_w - 2 * icon_size - label:getSize().w) / 2))
-        local function chevron(name, shown)
-            return shown and KoboldWidgets.icon(name, icon_size) or HorizontalSpan:new{ width = icon_size }
-        end
-        footer = CenterContainer:new{
-            dimen = Geom:new{ w = W, h = footer_h },
-            HorizontalGroup:new{
-                align = "center",
-                chevron("chevron.left", self.page > 1),
-                HorizontalSpan:new{ width = spacer },
-                label,
-                HorizontalSpan:new{ width = spacer },
-                chevron("chevron.right", self.page < self.pages),
-            },
-        }
-    end
-    self.close_rect = Geom:new{
-        x = margin + content_w - close_sz - Screen:scaleBySize(10), y = margin - Screen:scaleBySize(10),
-        w = close_sz + Screen:scaleBySize(20), h = top_h + Screen:scaleBySize(10),
+    self.bar = { w = bar_w, h = max_h, page = self.page, pages = self.pages, arrow = Screen:scaleBySize(22) }
+    self.bar_rect = Geom:new{ x = x0 + list_w, y = list_y, w = bar_w + bar_gap + pad, h = max_h }
+    self.close_rect = Geom:new{ x = x0 + inner_w - close_sz - pad, y = R.y, w = close_sz + 2 * pad, h = top_h + pad }
+    self.panel_rect = R
+
+    local page_label = TextWidget:new{
+        text = self.pages > 1 and string.format(_("Page %d of %d"), self.page, self.pages) or "",
+        face = KoboldWidgets.face(14), fgcolor = KoboldWidgets.subtitleColor(),
     }
-
-    return FrameContainer:new{
-        width = W, height = H, bordersize = 0, padding = 0,
+    local panel = FrameContainer:new{
+        bordersize = border, padding = pad,
+        radius = KoboldPopup.radius(),
         background = Blitbuffer.COLOR_WHITE,
-        OverlapGroup:new{
-            dimen = Geom:new{ w = W, h = H },
-            FrameContainer:new{
-                bordersize = 0, padding = margin, padding_bottom = 0,
-                VerticalGroup:new{
-                    align = "left",
-                    -- Top bar: small centred title and a close button.
-                    OverlapGroup:new{
-                        dimen = Geom:new{ w = content_w, h = top_h },
-                        CenterContainer:new{
-                            dimen = Geom:new{ w = content_w, h = top_h },
-                            TextWidget:new{ text = _("Settings"), face = KoboldWidgets.face(15) },
-                        },
-                        RightContainer:new{
-                            dimen = Geom:new{ w = content_w, h = top_h },
-                            KoboldWidgets.icon("close", close_sz),
-                        },
-                    },
-                    VerticalSpan:new{ width = head_gap },
-                    KoboldWidgets.fixed(content_w, head_h, TextWidget:new{
-                        text = _("Kobold Settings"), face = KoboldWidgets.face(26),
-                    }),
-                    list,
+        VerticalGroup:new{
+            align = "left",
+            -- Top bar: the page on the left, the title in the middle and a
+            -- close button.
+            OverlapGroup:new{
+                dimen = Geom:new{ w = inner_w, h = top_h },
+                LeftContainer:new{ dimen = Geom:new{ w = inner_w, h = top_h }, page_label },
+                CenterContainer:new{
+                    dimen = Geom:new{ w = inner_w, h = top_h },
+                    TextWidget:new{ text = _("Settings"), face = KoboldWidgets.face(18) },
+                },
+                RightContainer:new{
+                    dimen = Geom:new{ w = inner_w, h = top_h },
+                    KoboldWidgets.icon("close", close_sz),
                 },
             },
-            VerticalGroup:new{
-                VerticalSpan:new{ width = H - footer_h },
-                footer,
-            },
+            VerticalSpan:new{ width = head_h },
+            self.pages > 1 and HorizontalGroup:new{
+                align = "top",
+                KoboldWidgets.fixed(list_w, max_h, list),
+                HorizontalSpan:new{ width = bar_gap },
+                KoboldWidgets.pageBar(self.bar),
+            } or KoboldWidgets.fixed(list_w, max_h, list),
         },
     }
+    return KoboldPopup.place(self.dimen, R.x, R.y, panel)
 end
 
 function KoboldSettings:goToPage(page)
@@ -271,8 +272,9 @@ function KoboldSettings:init()
             self:onClose()
             return
         end
-        if self.pages > 1 and ges.pos.y >= self.footer_y then
-            self:goToPage(self.page + (ges.pos.x < W / 2 and -1 or 1))
+        if self.pages > 1 and ges.pos:intersectWith(self.bar_rect) then
+            local page = KoboldWidgets.pageBarTarget(ges.pos.y - self.bar_rect.y, self.bar)
+            if page then self:goToPage(page) end
             return
         end
         local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
@@ -301,7 +303,7 @@ end
 function KoboldSettings:refresh()
     if self.closed then return end
     self[1] = self:build()
-    UIManager:setDirty(self, "ui")
+    UIManager:setDirty(self, function() return "ui", self.panel_rect end)
 end
 
 -- Closing after a change refreshes the screen below in full, clearing what
@@ -311,13 +313,14 @@ function KoboldSettings:onClose()
     if KoboldPrefs.revision() ~= self.start_revision then
         UIManager:close(self, "full")
     else
-        UIManager:close(self)
+        UIManager:close(self, "ui", self.panel_rect)
     end
     return true
 end
 
 function KoboldSettings.show()
-    UIManager:show(KoboldSettings:new{})
+    local w = KoboldSettings:new{}
+    UIManager:show(w, "ui", w.panel_rect)
 end
 
 return KoboldSettings

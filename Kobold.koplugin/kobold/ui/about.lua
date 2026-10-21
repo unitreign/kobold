@@ -21,6 +21,7 @@ local VerticalSpan    = require("ui/widget/verticalspan")
 local _               = require("gettext")
 local InfoMessage     = require("ui/widget/infomessage")
 local KoboldMeta      = require("kobold.meta")
+local KoboldPopup     = require("kobold.ui.popup")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldSettingsList = require("kobold.ui.settings_list")
 local KoboldTaps      = require("kobold.ui.taps")
@@ -29,7 +30,7 @@ local KoboldWidgets   = require("kobold.ui.widgets")
 local Screen = Device.screen
 
 local KoboldAbout = InputContainer:extend{
-    covers_fullscreen = true,
+    -- A panel over the screen it was opened from, not a full screen.
     name = "kobold_about",
 }
 
@@ -52,17 +53,22 @@ local function centred(w, widget)
     return CenterContainer:new{ dimen = Geom:new{ w = w, h = widget:getSize().h }, widget }
 end
 
+-- A bordered panel inset from the screen edges, like Kobold Settings.
 function KoboldAbout:build()
-    local W, H = Screen:getWidth(), Screen:getHeight()
-    local margin    = Screen:scaleBySize(30)
-    local content_w = W - 2 * margin
-    local top_h     = Screen:scaleBySize(44)
-    local close_sz  = Screen:scaleBySize(28)
+    local R = KoboldPopup.panelRect()
+    local border    = Screen:scaleBySize(2)
+    local pad       = Screen:scaleBySize(20)
+    local content_w = R.w - 2 * (border + pad)
+    local inner_h   = R.h - 2 * (border + pad)
+    local x0, y0    = R.x + border + pad, R.y + border + pad
+    local top_h     = Screen:scaleBySize(36)
+    local close_sz  = Screen:scaleBySize(26)
     local gap       = Screen:scaleBySize(10)
+    self.panel_rect = R
 
     self.close_rect = Geom:new{
-        x = margin + content_w - close_sz - gap, y = margin - gap,
-        w = close_sz + 2 * gap, h = top_h + gap,
+        x = x0 + content_w - close_sz - pad, y = R.y,
+        w = close_sz + 2 * pad, h = top_h + pad,
     }
 
     local page = VerticalGroup:new{
@@ -85,7 +91,7 @@ function KoboldAbout:build()
     if icon then page[#page + 1] = centred(content_w, icon) end
     -- Tap area of the logo, for the debug mode toggle.
     self.logo_rect = Geom:new{
-        x = math.floor((W - icon_size) / 2), y = margin + top_h + gap,
+        x = x0 + math.floor((content_w - icon_size) / 2), y = y0 + top_h + gap,
         w = icon_size, h = icon_size,
     }
     page[#page + 1] = centred(content_w, TextWidget:new{
@@ -107,7 +113,10 @@ function KoboldAbout:build()
     }
     page[#page + 1] = VerticalSpan:new{ width = 2 * gap }
 
-    local list = KoboldSettingsList.build({
+    -- Tap a row's name for its details (tooltip). The group's layout is
+    -- measured here, so it is reset once everything is added (see the end).
+    local list_y = y0 + page:getSize().h
+    local list, hits = KoboldSettingsList.build({
         { section = _("Project") },
         {
             title = _("Source code"),
@@ -119,7 +128,8 @@ function KoboldAbout:build()
             desc = _("Free and open source software under the GNU General Public License, version 3."),
             value = KoboldMeta.LICENSE,
         },
-    }, 0, 0, content_w)
+    }, x0, list_y, content_w)
+    self.hits = hits
     page[#page + 1] = list
 
     -- QR code to the project page, as large as fits above the bottom margin
@@ -130,7 +140,8 @@ function KoboldAbout:build()
         face = KoboldWidgets.face(13),
         fgcolor = KoboldWidgets.subtitleColor(),
     }
-    local room = H - margin - page:getSize().h - 3 * gap - caption:getSize().h
+    page:resetLayout()
+    local room = inner_h - page:getSize().h - 3 * gap - caption:getSize().h
     local qr_size = math.min(Screen:scaleBySize(150), room)
     if qr_size >= Screen:scaleBySize(90) then
         local qr = image(KoboldMeta.icon("kobold-qr.png"), qr_size)
@@ -145,17 +156,14 @@ function KoboldAbout:build()
         end
     end
 
-    return FrameContainer:new{
-        width = W, height = H, bordersize = 0, padding = 0,
+    page:resetLayout()
+    local panel = FrameContainer:new{
+        bordersize = border, padding = pad,
+        radius = KoboldPopup.radius(),
         background = Blitbuffer.COLOR_WHITE,
-        OverlapGroup:new{
-            dimen = Geom:new{ w = W, h = H },
-            FrameContainer:new{
-                bordersize = 0, padding = margin, padding_bottom = 0,
-                page,
-            },
-        },
+        KoboldWidgets.fixed(content_w, inner_h, page),
     }
+    return KoboldPopup.place(self.dimen, R.x, R.y, panel)
 end
 
 function KoboldAbout:init()
@@ -170,6 +178,9 @@ function KoboldAbout:init()
             self:onClose()
         elseif ges.pos:intersectWith(self.logo_rect) then
             self:onLogoTap()
+        else
+            local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
+            if on_tap then on_tap() end
         end
     end)
 end
@@ -193,12 +204,13 @@ function KoboldAbout:onLogoTap()
 end
 
 function KoboldAbout:onClose()
-    UIManager:close(self)
+    UIManager:close(self, "ui", self.panel_rect)
     return true
 end
 
 function KoboldAbout.show()
-    UIManager:show(KoboldAbout:new{})
+    local w = KoboldAbout:new{}
+    UIManager:show(w, "ui", w.panel_rect)
 end
 
 return KoboldAbout

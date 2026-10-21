@@ -95,8 +95,27 @@ function Kobold:init()
         local back = require("kobold.ui.session").take()
         if back then
             boot_handled = true
-            -- A full refresh: clears what the book page left on the screen.
-            UIManager:scheduleIn(0, function() self:showTab(back.tab, back.state, "full") end)
+            -- The screen parked under the book is lifted above this new file
+            -- browser as it is shown, so it appears with no rebuild; its data
+            -- (progress, last book) is refreshed just after. Without one, the
+            -- tab is built fresh. Both use a full refresh, which clears what
+            -- the book page left on the screen.
+            local Session = require("kobold.ui.session")
+            self:showWithFileManager(function()
+                local parked = back.screen
+                require("kobold.ui.transition").close()
+                if parked and Session.raise(parked) then
+                    -- KOReader runs waiting tasks before it repaints, so
+                    -- the screen is painted first here; only then is its
+                    -- data read again (that takes a moment).
+                    UIManager:nextTick(function()
+                        UIManager:forceRePaint()
+                        if parked.onKoboldReturn then parked:onKoboldReturn() end
+                    end)
+                else
+                    self:showTab(back.tab, back.state, "full")
+                end
+            end)
             return
         end
     end
@@ -107,7 +126,7 @@ function Kobold:init()
     if self.ui and not self.ui.document and not boot_handled then
         boot_handled = true
         if G_reader_settings:readSetting("start_with") == START_WITH_VALUE then
-            UIManager:scheduleIn(0, function()
+            self:showWithFileManager(function()
                 if not self:showHome() then
                     -- Turn the boot open off so a broken screen can't reopen
                     -- on every start. The user can select Kobold Home again.
@@ -115,6 +134,48 @@ function Kobold:init()
                 end
             end)
         end
+    end
+end
+
+-- Runs `open` (which shows a Kobold screen) right when KOReader puts this
+-- file browser on screen, in the same step, so the browser is never painted
+-- before Kobold covers it (it used to flash for a moment when a book
+-- closed). UIManager:show is wrapped once for that; the wrapper steps aside
+-- after use. If the browser is shown some other way, `open` still runs on
+-- the next tick.
+function Kobold:showWithFileManager(open)
+    local fm = self.ui
+    local done = false
+    local function run()
+        if done then return end
+        done = true
+        open()
+    end
+    local orig_show = UIManager.show
+    local wrapper
+    wrapper = function(um, widget, ...)
+        local result = orig_show(um, widget, ...)
+        if widget == fm and not done then
+            -- Unwrap only if nothing wrapped show after us.
+            if UIManager.show == wrapper then UIManager.show = orig_show end
+            run()
+        end
+        return result
+    end
+    UIManager.show = wrapper
+    UIManager:scheduleIn(0, function()
+        if UIManager.show == wrapper then UIManager.show = orig_show end
+        run()
+    end)
+end
+
+-- In the reader: the book is closing. When it was opened from Kobold (so
+-- Kobold comes back), show the "Closing book" panel while KOReader closes it.
+function Kobold:onCloseDocument()
+    local Session = require("kobold.ui.session")
+    if Session.returning() then
+        local _ = require("gettext")
+        require("kobold.ui.transition").show(_("Closing Book"))
     end
 end
 

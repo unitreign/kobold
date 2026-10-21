@@ -65,7 +65,7 @@ function KoboldBatteryPopup:build()
         content,
     }
     self.frame_dimen = Geom:new{ x = fx, y = fy, w = fw, h = box:getSize().h }
-    return KoboldPopup.place(self.dimen, fx, fy, box)
+    return KoboldPopup.place(self.dimen, fx, fy, box, KoboldPopup.anchor("battery"))
 end
 
 function KoboldBatteryPopup:init()

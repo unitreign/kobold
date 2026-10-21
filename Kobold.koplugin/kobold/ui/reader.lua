@@ -12,18 +12,33 @@ local KoboldReader = {}
 -- SimpleUI uses). The screen is remembered so closing the book returns to it.
 -- A failure is shown on screen instead of being ignored.
 function KoboldReader.open(screen, file)
+    -- The screen is parked, not closed: it stays under the reader so it
+    -- can come back at once when the book closes (see session.lua).
     KoboldSession.rememberScreen(screen)
-    UIManager:close(screen)
-    local ok, err = pcall(function()
-        local ReaderUI = package.loaded["apps/reader/readerui"]
-            or require("apps/reader/readerui")
-        ReaderUI:showReader(file)
-    end)
-    if not ok then
-        UIManager:show(InfoMessage:new{
-            text = _("Could not open the book: ") .. tostring(err),
-        })
+    -- "Opening Book" panel (Kobold Settings), painted before KOReader starts
+    -- the slow part; the book then opens on the next tick. It stays on top
+    -- (it is modal) while the book loads, and closes once the book is fully
+    -- open, through showReader's after-open callback.
+    local Transition = require("kobold.ui.transition")
+    Transition.show(_("Opening Book"))
+    local function openNow()
+        local ok, err = pcall(function()
+            local ReaderUI = package.loaded["apps/reader/readerui"]
+                or require("apps/reader/readerui")
+            -- With the panel on, KOReader's own "Opening file" message is
+            -- hidden (its "seamless" open), so only Kobold's panel shows.
+            local quiet = Transition.enabled()
+            ReaderUI:showReader(file, nil, quiet or nil, nil,
+                quiet and function() Transition.bookReady() end or nil)
+        end)
+        if not ok then
+            Transition.close()
+            UIManager:show(InfoMessage:new{
+                text = _("Could not open the book: ") .. tostring(err),
+            })
+        end
     end
+    if Transition.enabled() then UIManager:nextTick(openNow) else openNow() end
 end
 
 -- How a tap opens a book: "single" or "double". Kobold Settings can pick

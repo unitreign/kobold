@@ -110,6 +110,13 @@ function KoboldHome:init()
 end
 
 -- Redraws the whole screen with the covers now in the cover cache.
+-- Back from a book on a parked screen (session.lua): read the progress,
+-- last book and stats again and redraw.
+function KoboldHome:onKoboldReturn()
+    self.data = KoboldHomeData.getHomeData()
+    self:refreshCovers()
+end
+
 function KoboldHome:refreshCovers()
     self:build()
     UIManager:setDirty(self, "ui")
@@ -230,9 +237,21 @@ function KoboldHome:build()
         local item = data.reading[i]
         if item and item.file then
             local file = item.file
-            KoboldTaps.add(self, "KoboldTop" .. i,
-                margin + (i - 1) * (top_w + L.top_gap), y_read, top_w, top_h,
+            local x = margin + (i - 1) * (top_w + L.top_gap)
+            KoboldTaps.add(self, "KoboldTop" .. i, x, y_read, top_w, top_h,
                 function() KoboldReader.tapOpen(self, file) end)
+            -- Hold: the same book menu as the "..." in My Books. Home is read
+            -- again after the menu changed something.
+            KoboldTaps.hold(self, "KoboldTopHold" .. i, x, y_read, top_w, top_h, function()
+                local shown = KoboldWidgets.showBookMenu(file, function()
+                    if self.onKoboldReturn then self:onKoboldReturn() end
+                end)
+                if not shown then
+                    UIManager:show(require("ui/widget/infomessage"):new{
+                        text = require("gettext")("The book menu is not available."),
+                    })
+                end
+            end)
         end
     end
     if data.latest and data.latest.file then

@@ -1,6 +1,6 @@
 -- kobold/ui/battery.lua — Kobold
--- Battery icon for the status bar: icons/battery.svg turned 180 degrees so
--- the tip faces left, with either a black fill that follows the charge or
+-- Battery icon for the status bar: icons/battery-empty.svg (tip on the
+-- left), with either a black fill that follows the charge or
 -- the charge percentage written inside it (Kobold Settings > Battery).
 
 local Blitbuffer      = require("ffi/blitbuffer")
@@ -15,11 +15,12 @@ local KoboldMeta      = require("kobold.meta")
 
 local Screen = Device.screen
 
-local SVG = KoboldMeta.icon("battery.svg")
+-- Kobold's own battery icon; its tip already points left.
+local SVG = KoboldMeta.icon("battery-empty.svg")
 
 -- Shown instead while charging, in fill mode only, when the file is present.
 -- svgrepo's own download name is accepted too.
-local CHARGING_NAMES = { "battery-charging.svg", "battery-charging-svgrepo-com.svg" }
+local CHARGING_NAMES = { "battery-lightning.svg", "battery-charging.svg" }
 
 local function chargingSvg()
     for _i, name in ipairs(CHARGING_NAMES) do
@@ -32,8 +33,10 @@ end
 -- Inside of the battery body in the SVG's 24 x 24 grid, after the 180 degree
 -- turn: the body's inner edge is x 7..20, y 9..15. The fill keeps one unit
 -- clear of the outline.
-local INNER = { x = 7, y = 9, w = 13, h = 6 }
-local FILL  = { x = 8, y = 10, w = 11, h = 4 }
+-- In battery-empty.svg's 24 x 24 grid: INNER is the inside of the outline
+-- (for the percentage), FILL the clear area inside its thin white ring.
+local INNER = { x = 6.25, y = 8.25, w = 13.5, h = 7.5 }
+local FILL  = { x = 7.25, y = 9.25, w = 11.5, h = 5.5 }
 
 -- Charge 0..100, or nil when the device does not report it.
 local function capacity()
@@ -56,19 +59,16 @@ local KoboldBattery = Widget:extend{
 function KoboldBattery:init()
     self.level = capacity()
     local file = SVG
-    -- In fill mode, charging shows the charging icon and no fill.
+    -- In fill mode, charging shows the charging icon (a lightning bolt with
+    -- a white outline) over the usual fill.
     local charging_svg = self.style ~= "percent" and charging() and chargingSvg()
-    if charging_svg then
-        file = charging_svg
-        self.show_level = false
-    else
-        self.show_level = true
-    end
+    if charging_svg then file = charging_svg end
+    self.show_level = true
     if file then
         local ok, icon = pcall(function()
             return IconWidget:new{
                 file = file, width = self.size, height = self.size,
-                alpha = true, rotation_angle = 180,
+                alpha = true, original_in_nightmode = false,
             }
         end)
         if ok then self.icon = icon end
@@ -85,11 +85,22 @@ end
 function KoboldBattery:paintTo(bb, x, y)
     self.dimen.x, self.dimen.y = x, y
     local top = y + math.floor((self.slot_h - self.size) / 2)
+    local u = self.size / 24
+    local function px(v) return math.floor(v * u + 0.5) end
+    -- The fill is painted first and the icon over it, so a charging bolt
+    -- stays visible on top of the fill.
+    if self.level and self.show_level and self.style ~= "percent" then
+        -- Drains toward the tip: the full part stays on the right.
+        local fill_w = px(FILL.w)
+        local w = math.floor(fill_w * self.level / 100 + 0.5)
+        if w > 0 then
+            bb:paintRect(x + px(FILL.x) + fill_w - w, top + px(FILL.y), w, px(FILL.h),
+                Blitbuffer.COLOR_BLACK)
+        end
+    end
     if self.icon then self.icon:paintTo(bb, x, top) end
     if not self.level or not self.show_level then return end
 
-    local u = self.size / 24
-    local function px(v) return math.floor(v * u + 0.5) end
     if self.style == "percent" then
         local inner_w, inner_h = px(INNER.w), px(INNER.h)
         local text = TextWidget:new{
@@ -102,14 +113,6 @@ function KoboldBattery:paintTo(bb, x, y)
         text:paintTo(bb, x + px(INNER.x) + math.floor((inner_w - ts.w) / 2),
             top + px(INNER.y) + math.floor((inner_h - ts.h) / 2))
         text:free()
-    else
-        -- Drains toward the tip: the full part stays on the right.
-        local fill_w = px(FILL.w)
-        local w = math.floor(fill_w * self.level / 100 + 0.5)
-        if w > 0 then
-            bb:paintRect(x + px(FILL.x) + fill_w - w, top + px(FILL.y), w, px(FILL.h),
-                Blitbuffer.COLOR_BLACK)
-        end
     end
 end
 

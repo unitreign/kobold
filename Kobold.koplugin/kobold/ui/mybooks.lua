@@ -1022,19 +1022,74 @@ end
 -- One author / series / collection row: name over its book count, and a
 -- right chevron. A series row also starts with the cover of its first book,
 -- sized like a book row. Exactly as tall as rowSize() says.
+-- A series row, as on the e-reader: the first book's cover (with a small
+-- stack of edges above it when the series has more than one book), the
+-- series name, its author, and the book count at the bottom.
+function KoboldMyBooks:buildSeriesRow(group)
+    local L = self.L
+    local _n, _slot, row_h = self:rowSize()
+    local first = group.books[1]
+
+    -- Cover, shortened to make room for the stack lines when there are any.
+    local line_h = Screen:scaleBySize(2)
+    local line_gap = Screen:scaleBySize(2)
+    local stacked = #group.books > 1
+    local stack_h = stacked and 2 * (line_h + line_gap) or 0
+    local cover_h = L.thumb_h - stack_h
+    local cover_w = math.floor(cover_h / COVER_RATIO)
+    local cw = KoboldWidgets.coverSize(first and first.file, cover_w, cover_h)
+    local thumb = VerticalGroup:new{ align = "center" }
+    if stacked then
+        local inset = Screen:scaleBySize(4)
+        for k = 2, 1, -1 do
+            thumb[#thumb + 1] = LineWidget:new{
+                dimen = Geom:new{ w = math.max(1, cw - 2 * k * inset), h = line_h },
+                background = Blitbuffer.COLOR_DARK_GRAY,
+            }
+            thumb[#thumb + 1] = VerticalSpan:new{ width = line_gap }
+        end
+    end
+    thumb[#thumb + 1] = KoboldWidgets.makeCover(first and first.file, cover_w, cover_h)
+
+    -- Authors of the series: the first book's, which the others share in
+    -- almost every series.
+    local authors = first and first.authors
+    local text_w = L.list_w - L.thumb_w - L.col_gap
+    local top = VerticalGroup:new{
+        align = "left",
+        TextWidget:new{ text = group.name, face = KoboldWidgets.face(17), max_width = text_w },
+    }
+    if authors then
+        top[#top + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
+        top[#top + 1] = TextWidget:new{ text = authors, face = KoboldWidgets.face(14), max_width = text_w }
+    end
+    local count = TextWidget:new{
+        text = countText(#group.books), face = KoboldWidgets.face(14), max_width = text_w,
+    }
+    local pad = L.row_pad
+    local fill = math.max(0, row_h - 2 * pad - top:getSize().h - count:getSize().h)
+
+    return HorizontalGroup:new{
+        CenterContainer:new{ dimen = Geom:new{ w = L.thumb_w, h = row_h }, thumb },
+        HorizontalSpan:new{ width = L.col_gap },
+        VerticalGroup:new{
+            align = "left",
+            VerticalSpan:new{ width = pad },
+            top,
+            VerticalSpan:new{ width = fill },
+            count,
+            VerticalSpan:new{ width = pad },
+        },
+    }
+end
+
 function KoboldMyBooks:buildGroupRow(group)
     local L = self.L
     local _n, _slot, row_h = self:rowSize()
     local text_w = L.list_w - L.col_gap - L.chevron
     local row = HorizontalGroup:new{}
     if self.tab == "series" then
-        local first = group.books[1]
-        row[#row + 1] = CenterContainer:new{
-            dimen = Geom:new{ w = L.thumb_w, h = row_h },
-            KoboldWidgets.makeCover(first and first.file, L.thumb_w, L.thumb_h),
-        }
-        row[#row + 1] = HorizontalSpan:new{ width = L.col_gap }
-        text_w = text_w - L.thumb_w - L.col_gap
+        return self:buildSeriesRow(group)
     end
     row[#row + 1] = LeftContainer:new{
         dimen = Geom:new{ w = text_w, h = row_h },
@@ -1573,6 +1628,15 @@ function KoboldMyBooks:reload()
     end
     self:applyList()
     self:refresh()
+end
+
+-- Back from a book on a parked screen (session.lua). The file browser was
+-- replaced while reading, so the refresh hook moves to the new one; then
+-- the list is read again for the new progress and status.
+function KoboldMyBooks:onKoboldReturn()
+    if self.unhook then self.unhook() self.unhook = nil end
+    self:hookFileManager()
+    self:scheduleReload()
 end
 
 function KoboldMyBooks:onCloseWidget()

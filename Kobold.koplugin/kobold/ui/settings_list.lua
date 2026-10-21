@@ -37,6 +37,10 @@ local function actionFace(size)
     return KoboldWidgets.face(size)
 end
 
+-- Compact rows, as on the e-reader's settings pages: one line per setting,
+-- its value on the right. A setting's description is not drawn; tapping its
+-- name shows it as a tooltip, tapping its value changes it.
+--
 -- `spec` is a list of items, top to bottom:
 --   { section = "HOME" }                                   a gray band
 --   { title, desc = optional, value = optional text,
@@ -49,9 +53,9 @@ end
 -- list grows past this height; a section band is never left last.
 function KoboldSettingsList.build(spec, x, y, w, opts)
     opts = opts or {}
-    local band_h   = Screen:scaleBySize(30)
+    local band_h   = Screen:scaleBySize(26)
     local band_pad = Screen:scaleBySize(10)
-    local row_pad  = Screen:scaleBySize(12)
+    local row_pad  = Screen:scaleBySize(9)
     local gap      = Screen:scaleBySize(16)
     local line_h   = Screen:scaleBySize(1)
     local value_w  = math.floor(w * 0.38)
@@ -63,7 +67,7 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
         local item = spec[i]
         if item.section then
             local widgets = {}
-            if i > from then widgets[#widgets + 1] = VerticalSpan:new{ width = Screen:scaleBySize(10) } end
+            if i > from then widgets[#widgets + 1] = VerticalSpan:new{ width = Screen:scaleBySize(6) } end
             widgets[#widgets + 1] = FrameContainer:new{
                 bordersize = 0, padding = 0,
                 background = bandColor(),
@@ -79,22 +83,10 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
                     },
                 }),
             }
-            local h = band_h + (i > from and Screen:scaleBySize(10) or 0)
+            local h = band_h + (i > from and Screen:scaleBySize(6) or 0)
             return { widgets = widgets, h = h, section = true }
         end
-        local text = VerticalGroup:new{
-            align = "left",
-            TextWidget:new{ text = item.title, face = KoboldWidgets.face(17), max_width = text_w },
-        }
-        if item.desc then
-            text[#text + 1] = VerticalSpan:new{ width = Screen:scaleBySize(3) }
-            text[#text + 1] = TextBoxWidget:new{
-                text = item.desc,
-                face = KoboldWidgets.face(13),
-                fgcolor = KoboldWidgets.subtitleColor(),
-                width = text_w,
-            }
-        end
+        local text = TextWidget:new{ text = item.title, face = KoboldWidgets.face(16), max_width = text_w }
         local value = TextWidget:new{
             text = item.value or "",
             face = item.action and actionFace(16) or KoboldWidgets.face(15),
@@ -115,7 +107,7 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
             }
             h = h + line_h
         end
-        return { widgets = widgets, h = h, row_h = row_h, on_tap = item.on_tap }
+        return { widgets = widgets, h = h, row_h = row_h, on_tap = item.on_tap, item = item }
     end
 
     local list = VerticalGroup:new{ align = "left" }
@@ -132,14 +124,38 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
             next_index = i
             break
         end
-        if not p.section and p.on_tap then
-            hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = w, h = p.row_h }, on_tap = p.on_tap }
+        if not p.section then
+            local item = p.item
+            local tip = item.desc and function() KoboldSettingsList.showTip(item) end
+            if tip then
+                -- Name: the tooltip. Value side: the setting itself.
+                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = text_w, h = p.row_h }, on_tap = tip }
+                if p.on_tap then
+                    hits[#hits + 1] = {
+                        rect = Geom:new{ x = x + text_w, y = cy, w = w - text_w, h = p.row_h },
+                        on_tap = p.on_tap,
+                    }
+                end
+            elseif p.on_tap then
+                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = w, h = p.row_h }, on_tap = p.on_tap }
+            end
         end
         for _k, widget in ipairs(p.widgets) do list[#list + 1] = widget end
         cy = cy + p.h
         i = i + 1
     end
     return list, hits, next_index
+end
+
+-- Tooltip for a setting: its name and description in a small box.
+function KoboldSettingsList.showTip(item)
+    local InfoMessage = require("ui/widget/infomessage")
+    local UIManager = require("ui/uimanager")
+    UIManager:show(InfoMessage:new{
+        text = item.title .. "\n\n" .. item.desc,
+        show_icon = false,
+        width = math.floor(Screen:getWidth() * 0.75),
+    })
 end
 
 -- The on_tap of the row under `pos`, or nil.
