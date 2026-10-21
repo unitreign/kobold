@@ -41,6 +41,18 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 - **Customisable reading stats** on the home screen, with your own text and tap actions
 - **Fast**, with covers and book info cached so screens open quickly
 
+## Planned
+
+### Next
+
+- **Book details** page with the cover, synopsis and file details. The "..." on a book will show Read now, View Details and KOReader Details
+- **Collections** that work like the stock reader: a new collection screen, adding books with filter, sort and search, book counts on the right, and your own book order inside each collection
+
+### Later
+
+- **Activity** tab with your current book, reading time, sessions and how many books you have finished
+- **Custom status bar and nav bar**, add, remove and reorder items, with your own icons
+
 ## Requirements
 
 - [KOReader](https://github.com/koreader/koreader), any reasonably recent build
