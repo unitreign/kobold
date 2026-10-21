@@ -5,7 +5,7 @@
 # Kobold
 
 **A home screen for KOReader with the calm, familiar look of your e-reader's original software.**
-
+ 
 [![Release](https://img.shields.io/github/v/release/unitreign/kobold?label=version&color=black)](https://github.com/unitreign/kobold/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-black)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/unitreign)
