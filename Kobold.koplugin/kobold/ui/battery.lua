@@ -16,27 +16,33 @@ local KoboldMeta      = require("kobold.meta")
 local Screen = Device.screen
 
 -- Kobold's own battery icon; its tip already points left.
-local SVG = KoboldMeta.icon("battery-empty.svg")
+-- Two icon sets, picked by Kobold Settings > Icons. Each has its icon, the
+-- charging icon (fill mode only), the turn to apply, and in the SVG's 24 x 24
+-- grid INNER (the inside of the outline, for the percentage) and FILL (the
+-- area the charge fills).
+local SETS = {
+    -- Kobold's own; the tip already points left.
+    kobold = {
+        icon = "battery-empty.svg", charging = "battery-lightning.svg", rotation = 0,
+        INNER = { x = 6.25, y = 8.25, w = 13.5, h = 7.5 },
+        FILL  = { x = 7.25, y = 9.25, w = 11.5, h = 5.5 },
+    },
+    -- The battery Kobold used before its own icons, turned 180 degrees so
+    -- the tip faces left.
+    koreader = {
+        icon = "battery.svg", charging = "battery-charging.svg", rotation = 180,
+        -- Its bolt is plain black, so a fill under it would hide it.
+        no_fill_while_charging = true,
+        INNER = { x = 7, y = 9, w = 13, h = 6 },
+        FILL  = { x = 8, y = 10, w = 11, h = 4 },
+    },
+}
 
--- Shown instead while charging, in fill mode only, when the file is present.
--- svgrepo's own download name is accepted too.
-local CHARGING_NAMES = { "battery-lightning.svg", "battery-charging.svg" }
-
-local function chargingSvg()
-    for _i, name in ipairs(CHARGING_NAMES) do
-        local path = KoboldMeta.icon(name)
-        if path and lfs.attributes(path, "mode") == "file" then return path end
-    end
+local function existing(name)
+    local path = name and KoboldMeta.icon(name)
+    if path and lfs.attributes(path, "mode") == "file" then return path end
     return nil
 end
-
--- Inside of the battery body in the SVG's 24 x 24 grid, after the 180 degree
--- turn: the body's inner edge is x 7..20, y 9..15. The fill keeps one unit
--- clear of the outline.
--- In battery-empty.svg's 24 x 24 grid: INNER is the inside of the outline
--- (for the percentage), FILL the clear area inside its thin white ring.
-local INNER = { x = 6.25, y = 8.25, w = 13.5, h = 7.5 }
-local FILL  = { x = 7.25, y = 9.25, w = 11.5, h = 5.5 }
 
 -- Charge 0..100, or nil when the device does not report it.
 local function capacity()
@@ -58,17 +64,20 @@ local KoboldBattery = Widget:extend{
 
 function KoboldBattery:init()
     self.level = capacity()
-    local file = SVG
+    local set = require("kobold.data.prefs").get("icons") == "koreader" and SETS.koreader or SETS.kobold
+    self.set = set
+    local file = existing(set.icon)
     -- In fill mode, charging shows the charging icon (a lightning bolt with
     -- a white outline) over the usual fill.
-    local charging_svg = self.style ~= "percent" and charging() and chargingSvg()
+    local charging_svg = self.style ~= "percent" and charging() and existing(set.charging)
     if charging_svg then file = charging_svg end
-    self.show_level = true
+    self.show_level = not (charging_svg and set.no_fill_while_charging)
     if file then
         local ok, icon = pcall(function()
             return IconWidget:new{
                 file = file, width = self.size, height = self.size,
                 alpha = true, original_in_nightmode = false,
+                rotation_angle = set.rotation,
             }
         end)
         if ok then self.icon = icon end
@@ -85,6 +94,7 @@ end
 function KoboldBattery:paintTo(bb, x, y)
     self.dimen.x, self.dimen.y = x, y
     local top = y + math.floor((self.slot_h - self.size) / 2)
+    local INNER, FILL = self.set.INNER, self.set.FILL
     local u = self.size / 24
     local function px(v) return math.floor(v * u + 0.5) end
     -- The fill is painted first and the icon over it, so a charging bolt

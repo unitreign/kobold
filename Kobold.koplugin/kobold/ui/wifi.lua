@@ -153,10 +153,7 @@ function KoboldWifi:build()
             -- Link to KOReader's list of networks, in italics.
             content[#content + 1] = line()
             y = y + line_h
-            local face = KoboldWidgets.face(16)
-            local ok_f, italic = pcall(function() return require("ui/font"):getFace("infont", 16) end)
-            if ok_f and italic then face = italic end
-            content[#content + 1] = row(TextWidget:new{ text = _("Wi-Fi Settings"), face = face })
+            content[#content + 1] = row(TextWidget:new{ text = _("Wi-Fi Settings"), face = KoboldWidgets.italicFace(16) })
             self.rows.settings = Geom:new{ x = x0, y = y, w = inner, h = row_h }
         end
     end

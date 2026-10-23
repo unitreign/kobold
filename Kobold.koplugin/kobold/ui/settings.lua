@@ -89,6 +89,19 @@ function KoboldSettings:spec()
             end,
         },
         {
+            title = _("Book menu"),
+            desc = _("What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."),
+            value = KoboldPrefs.get("book_menu") == "koreader" and _("KOReader") or _("Kobold"),
+            on_tap = function()
+                KoboldEditors.choose(_("Book menu"), {
+                    { id = "kobold", label = _("Kobold") },
+                    { id = "koreader", label = _("KOReader") },
+                }, KoboldPrefs.get("book_menu") == "koreader" and "koreader" or "kobold", function(id)
+                    KoboldPrefs.set("book_menu", id == "koreader" and "koreader" or nil)
+                end, done)
+            end,
+        },
+        {
             title = _("Open books with"),
             desc = _("How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."),
             value = TAP_LABELS[KoboldPrefs.get("open_tap")] or TAP_LABELS.koreader,
@@ -118,6 +131,21 @@ function KoboldSettings:spec()
             on_tap = function()
                 KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
                 done()
+            end,
+        },
+        { section = _("Look") },
+        {
+            title = _("Icons"),
+            desc = _("Kobold's own icons for the status bar and nav bar, or KOReader's default icons."),
+            value = KoboldPrefs.get("icons") == "koreader" and _("KOReader") or _("Kobold"),
+            on_tap = function()
+                KoboldEditors.choose(_("Icons"), {
+                    { id = "kobold", label = _("Kobold") },
+                    { id = "koreader", label = _("KOReader") },
+                }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
+                    KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
+                    UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
+                end, done)
             end,
         },
         { section = _("Status bar") },
@@ -153,6 +181,7 @@ function KoboldSettings:spec()
                 KoboldEditors.confirm(_("Reset all Kobold settings?"), _("Reset"), function()
                     KoboldPrefs.resetAll()
                     broadcastChange()
+                    UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
                 end, done)
             end,
         },
