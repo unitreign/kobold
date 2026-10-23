@@ -77,7 +77,8 @@ end
 -- covers the box's top border so the two read as one shape.
 local Arrow = Widget:extend{
     cx = 0,        -- screen x of the tip
-    box_top = 0,   -- screen y of the box's top edge
+    box_top = 0,   -- screen y of the box edge the arrow sits on
+    down = false,  -- true: below the box, pointing down
 }
 
 function Arrow:paintTo(bb)
@@ -85,7 +86,8 @@ function Arrow:paintTo(bb)
     local inner = math.ceil(b * 1.42)  -- border measured across the slope
     local top = self.box_top - h
     for r = 0, h + b - 1 do
-        local y = top + r
+        -- Row r counts from the tip; pointing down, rows go upward from it.
+        local y = self.down and (self.box_top + h - 1 - r) or (top + r)
         if r < h then
             bb:paintRect(self.cx - r, y, 2 * r + 1, 1, Blitbuffer.COLOR_BLACK)
         end
@@ -100,10 +102,17 @@ function Arrow:getSize()
     return Geom:new{ w = 0, h = 0 }
 end
 
+-- Height of the arrow, for callers that place a box next to what it
+-- points at.
+function KoboldPopup.arrowHeight()
+    return arrowH()
+end
+
 -- Full-screen transparent layer with `box` drawn at (fx, fy). With
 -- `arrow_x` (a screen x, see anchor), an arrow above the box points there;
--- it stays inside the box's width.
-function KoboldPopup.place(dimen, fx, fy, box, arrow_x)
+-- it stays inside the box's width. `arrow_down` puts it below the box,
+-- pointing down.
+function KoboldPopup.place(dimen, fx, fy, box, arrow_x, arrow_down)
     local layer = OverlapGroup:new{
         dimen = dimen,
         VerticalGroup:new{
@@ -116,8 +125,50 @@ function KoboldPopup.place(dimen, fx, fy, box, arrow_x)
         local w = box:getSize().w
         local h = arrowH()
         local cx = math.max(fx + h + border(), math.min(fx + w - h - border(), arrow_x))
-        layer[#layer + 1] = Arrow:new{ cx = cx, box_top = fy }
+        if arrow_down then
+            layer[#layer + 1] = Arrow:new{ cx = cx, box_top = fy + box:getSize().h, down = true }
+        else
+            layer[#layer + 1] = Arrow:new{ cx = cx, box_top = fy }
+        end
     end
+    return layer
+end
+
+-- An arrow on the box's right edge, pointing right (a menu shown beside
+-- what opened it). Its base covers the box's right border.
+local SideArrow = Widget:extend{
+    cy = 0,         -- screen y of the tip
+    box_right = 0,  -- screen x of the box's right edge
+}
+
+function SideArrow:paintTo(bb)
+    local h, b = arrowH(), border()
+    local inner = math.ceil(b * 1.42)
+    for c = 0, h + b - 1 do
+        -- Column c counts from the tip, going left toward the box.
+        local x = self.box_right + h - 1 - c
+        if c < h then
+            bb:paintRect(x, self.cy - c, 1, 2 * c + 1, Blitbuffer.COLOR_BLACK)
+        end
+        local half = c - inner
+        if half >= 0 then
+            bb:paintRect(x, self.cy - half, 1, 2 * half + 1, Blitbuffer.COLOR_WHITE)
+        end
+    end
+end
+
+function SideArrow:getSize()
+    return Geom:new{ w = 0, h = 0 }
+end
+
+-- Like place, with the arrow on the box's right edge pointing right at
+-- screen y `arrow_y` (kept inside the box's height).
+function KoboldPopup.placeSide(dimen, fx, fy, box, arrow_y)
+    local layer = KoboldPopup.place(dimen, fx, fy, box)
+    local size = box:getSize()
+    local h = arrowH()
+    local cy = math.max(fy + h + border(), math.min(fy + size.h - h - border(), arrow_y))
+    layer[#layer + 1] = SideArrow:new{ cy = cy, box_right = fx + size.w }
     return layer
 end
 
@@ -126,7 +177,7 @@ local function region(popup)
     local d = popup.frame_dimen
     if not d then return nil end
     local h = arrowH()
-    return Geom:new{ x = d.x, y = d.y - h, w = d.w, h = d.h + h }
+    return Geom:new{ x = d.x, y = d.y - h, w = d.w + h, h = d.h + 2 * h }
 end
 
 -- Shows `popup` and refreshes only its box (popup.frame_dimen) and arrow.

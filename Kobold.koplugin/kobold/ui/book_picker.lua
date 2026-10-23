@@ -20,6 +20,8 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local _               = require("gettext")
+local KoboldMyBooksData = require("kobold.data.mybooks")
+local KoboldEditors   = require("kobold.ui.editors")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldWidgets   = require("kobold.ui.widgets")
 
@@ -27,8 +29,39 @@ local Screen = Device.screen
 
 local ROWS = 6  -- books per page
 
+-- Filter and sort choices, as in My Books.
+local FILTERS = { "all", "reading", "unread", "finished" }
+local FILTER_LABELS = { all = _("All"), reading = _("Reading"), unread = _("Unread"), finished = _("Finished") }
+local SORTS = { "title_asc", "title_desc", "opened_desc", "added_desc" }
+local SORT_LABELS = {
+    title_asc = _("Title A–Z"), title_desc = _("Title Z–A"),
+    opened_desc = _("Recent"), added_desc = _("Newest"),
+}
+
+-- A grey rounded pill: text then a down chevron (or `icon`), exactly h tall.
+local function pill(text, h, icon, max_w)
+    local label = TextWidget:new{ text = text, face = KoboldWidgets.italicFace(15), max_width = max_w }
+    local content = HorizontalGroup:new{
+        align = "center",
+        label,
+        HorizontalSpan:new{ width = Screen:scaleBySize(6) },
+        icon or KoboldWidgets.chevronDown(Screen:scaleBySize(16)),
+    }
+    local ch = content:getSize().h
+    local side = Screen:scaleBySize(14)
+    local top = math.floor((h - ch) / 2)
+    local frame = FrameContainer:new{
+        bordersize = 0, radius = math.floor(h / 2), background = Blitbuffer.COLOR_LIGHT_GRAY,
+        padding = 0, padding_left = side, padding_right = side,
+        padding_top = top, padding_bottom = h - ch - top,
+        content,
+    }
+    return frame, frame:getSize().w
+end
+
 local KoboldBookPicker = InputContainer:extend{
-    modal = true,
+    -- Not modal: its filter and sort choices and the search keyboard must
+    -- open on top of it.
     name = "kobold_book_picker",
     title = nil,     -- popup heading
     books = nil,     -- entries to choose from (see data/mybooks.lua)
@@ -102,7 +135,8 @@ function KoboldBookPicker:build()
     local bar_gap   = Screen:scaleBySize(10)
     local arrow     = Screen:scaleBySize(24)
     local cb        = Screen:scaleBySize(26)
-    local list_h = inner_h - title_h - buttons_h - 2 * gap
+    local controls_h = Screen:scaleBySize(40)
+    local list_h = inner_h - title_h - controls_h - buttons_h - 3 * gap
     local row_w  = inner_w - bar_w - bar_gap
     local row_h  = math.floor((list_h - (ROWS - 1) * line_h) / ROWS)
     local thumb_h = row_h - Screen:scaleBySize(12)
@@ -134,15 +168,56 @@ function KoboldBookPicker:build()
         },
     })
 
+    -- Controls: Filter and Sort pills; on the right a search icon, or while
+    -- searching a pill with the search and an X that clears it.
+    local controls_y = y0 + title_h + gap
+    local pill_gap = Screen:scaleBySize(12)
+    self.control_hits = {}
+    local controls = HorizontalGroup:new{ align = "center" }
+    local cx = x0
+    local function addPill(widget, w, fn)
+        if #controls > 0 then
+            controls[#controls + 1] = HorizontalSpan:new{ width = pill_gap }
+            cx = cx + pill_gap
+        end
+        controls[#controls + 1] = widget
+        self.control_hits[#self.control_hits + 1] = { rect = Geom:new{ x = cx, y = controls_y, w = w, h = controls_h }, fn = fn }
+        cx = cx + w
+    end
+    local f_pill, f_w = pill(_("Filter: ") .. FILTER_LABELS[self.filter], controls_h)
+    addPill(f_pill, f_w, function() self:chooseFilter() end)
+    local s_pill, s_w = pill(_("Sort: ") .. SORT_LABELS[self.sort], controls_h)
+    addPill(s_pill, s_w, function() self:chooseSort() end)
+    local search_size = Screen:scaleBySize(26)
+    local right_w, right_widget, right_fn
+    if self.query then
+        local max_text = math.max(Screen:scaleBySize(60), inner_w - (cx - x0) - 2 * pill_gap - Screen:scaleBySize(60))
+        right_widget, right_w = pill('"' .. self.query .. '"', controls_h,
+            KoboldWidgets.icon("close", Screen:scaleBySize(16)), max_text)
+        right_fn = function() self:clearSearch() end
+    else
+        right_widget = KoboldWidgets.customIcon("search", search_size, "appbar.search")
+        right_w = search_size
+        right_fn = function() self:askSearch() end
+    end
+    controls[#controls + 1] = HorizontalSpan:new{ width = math.max(pill_gap, x0 + inner_w - cx - right_w) }
+    controls[#controls + 1] = right_widget
+    local right_x = x0 + inner_w - right_w
+    self.control_hits[#self.control_hits + 1] = {
+        rect = Geom:new{ x = right_x - pill_gap, y = controls_y, w = right_w + pill_gap + pad, h = controls_h },
+        fn = right_fn,
+    }
+
     -- One page of rows, with a thin line between rows.
     local rows = VerticalGroup:new{ align = "left" }
     local used = 0
-    local list_y = y0 + title_h + gap
+    local list_y = controls_y + controls_h + gap
     if #self.books == 0 then
         rows[#rows + 1] = CenterContainer:new{
             dimen = Geom:new{ w = row_w, h = list_h },
             TextWidget:new{
-                text = _("Every book is already in this collection."),
+                text = (self.query or self.filter ~= "all") and _("No books match.")
+                    or _("Every book is already in this collection."),
                 face = KoboldWidgets.face(15), fgcolor = KoboldWidgets.subtitleColor(),
                 max_width = row_w,
             },
@@ -207,6 +282,8 @@ function KoboldBookPicker:build()
             align = "left",
             title_row,
             VerticalSpan:new{ width = gap },
+            KoboldWidgets.fixed(inner_w, controls_h, controls),
+            VerticalSpan:new{ width = gap },
             HorizontalGroup:new{
                 align = "top",
                 rows,
@@ -229,6 +306,9 @@ function KoboldBookPicker:init()
     self.dimen = Geom:new{ x = 0, y = 0, w = W, h = H }
     self.selected = {}
     self.page = 1
+    self.all_books = self.books
+    self.filter, self.sort, self.query = "all", "title_asc", nil
+    self:applyView()
     self[1] = self:build()
     if Device:hasKeys() then
         self.key_events = {
@@ -246,6 +326,58 @@ function KoboldBookPicker:init()
 end
 
 -- Redraws the box only (ticks, page, count).
+-- The books shown: all of them, narrowed by the search and filter, in the
+-- chosen order. Ticks are kept; the list goes back to its first page.
+function KoboldBookPicker:applyView()
+    local list = self.all_books
+    if self.query then
+        local q = self.query:lower()
+        local found = {}
+        for _i, b in ipairs(list) do
+            local hay = table.concat({ b.title or "", b.authors or "", b.series or "",
+                b.file:match("([^/]+)$") or "" }, "\n"):lower()
+            if hay:find(q, 1, true) then found[#found + 1] = b end
+        end
+        list = found
+    end
+    list = KoboldMyBooksData.filter(list, self.filter)
+    self.books = KoboldMyBooksData.sort(list, self.sort)
+    self.page = 1
+end
+
+function KoboldBookPicker:chooseFilter()
+    local choices = {}
+    for _i, id in ipairs(FILTERS) do choices[#choices + 1] = { id = id, label = FILTER_LABELS[id] } end
+    KoboldEditors.choose(_("Filter"), choices, self.filter, function(id)
+        self.filter = id
+        self:applyView()
+    end, function() self:refresh() end)
+end
+
+function KoboldBookPicker:chooseSort()
+    local choices = {}
+    for _i, id in ipairs(SORTS) do choices[#choices + 1] = { id = id, label = SORT_LABELS[id] } end
+    KoboldEditors.choose(_("Sort"), choices, self.sort, function(id)
+        self.sort = id
+        self:applyView()
+    end, function() self:refresh() end)
+end
+
+-- Search by title, author, series or file name. Empty text clears it.
+function KoboldBookPicker:askSearch()
+    KoboldEditors.text(_("Search books"), nil, self.query or "", function(text)
+        self.query = text ~= "" and text or nil
+        self:applyView()
+    end, function() self:refresh() end)
+end
+
+-- Back to the list as it was before searching (filter and sort kept).
+function KoboldBookPicker:clearSearch()
+    self.query = nil
+    self:applyView()
+    self:refresh()
+end
+
 function KoboldBookPicker:refresh()
     self[1] = self:build()
     UIManager:setDirty(self, function() return "ui", self.frame_dimen end)
@@ -262,6 +394,12 @@ function KoboldBookPicker:onTapPicker(_, ges)
     local pos = ges.pos
     if not pos:intersectWith(self.frame_dimen) then
         return self:onClose()
+    end
+    for _i, hit in ipairs(self.control_hits or {}) do
+        if pos:intersectWith(hit.rect) then
+            hit.fn()
+            return true
+        end
     end
     for _i, hit in ipairs(self.row_hits) do
         if pos:intersectWith(hit.rect) then

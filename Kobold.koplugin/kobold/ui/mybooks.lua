@@ -722,7 +722,7 @@ function KoboldMyBooks:onListHold(pos)
     local item = self:itemAt(pos)
     if not item then return end
     if self.tab == "files" then
-        if item.is_dir then self:showFolderMenu(item.path) else self:showBookMenu(item.file) end
+        if item.is_dir then self:showFolderMenu(item.path) else self:openBookMenu(item.file, self:rowRect(pos), "side") end
     elseif self.tab == "collections" and not self.group then
         self:showCollectionOptions(item)
     end
@@ -999,7 +999,12 @@ function KoboldMyBooks:buildBookRow(item)
         }
     end
     right[#right + 1] = VerticalSpan:new{ width = Screen:scaleBySize(4) }
-    right[#right + 1] = TextWidget:new{ text = "…", face = KoboldWidgets.face(18), bold = true }
+    local dots = TextWidget:new{ text = "…", face = KoboldWidgets.face(18), bold = true }
+    right[#right + 1] = dots
+    -- Where the "..." sits in the row (its middle, from the row's top), for
+    -- the book menu's arrow. The right column is centred in the row.
+    local right_h = right:getSize().h
+    item.dots_y = math.floor((L.row_h - right_h) / 2) + right_h - math.floor(dots:getSize().h / 2)
 
     return HorizontalGroup:new{
         CenterContainer:new{
@@ -1069,7 +1074,10 @@ function KoboldMyBooks:buildSeriesRow(group)
     local pad = L.row_pad
     local fill = math.max(0, row_h - 2 * pad - top:getSize().h - count:getSize().h)
 
-    return HorizontalGroup:new{
+    -- Exactly the list's width: rows sized by their text made the list
+    -- narrower on a page with a single series (no separator lines to set
+    -- the width), and the side bar moved toward the middle with it.
+    return KoboldWidgets.fixed(L.list_w, row_h, HorizontalGroup:new{
         CenterContainer:new{ dimen = Geom:new{ w = L.thumb_w, h = row_h }, thumb },
         HorizontalSpan:new{ width = L.col_gap },
         VerticalGroup:new{
@@ -1080,7 +1088,7 @@ function KoboldMyBooks:buildSeriesRow(group)
             count,
             VerticalSpan:new{ width = pad },
         },
-    }
+    })
 end
 
 function KoboldMyBooks:buildGroupRow(group)
@@ -1300,7 +1308,11 @@ function KoboldMyBooks:onGridTap(pos)
     if item.books then
         self:openGroup(item)
     elseif in_y >= L.grid_cover_h + L.grid_text_gap + L.grid_status_h then
-        self:showBookMenu(item.file)
+        local cell_x = L.margin + col * (L.grid_cell_w + L.grid_gap_x)
+        self:openBookMenu(item.file, Geom:new{
+            x = cell_x, y = L.y_list + row * (L.grid_cell_h + L.grid_gap_y) + L.grid_cover_h,
+            w = L.grid_cell_w, h = L.grid_cell_h - L.grid_cover_h,
+        }, col < L.grid_cols / 2 and "left" or "right")
     else
         KoboldReader.tapOpen(self, item.file)
     end
@@ -1333,7 +1345,13 @@ function KoboldMyBooks:onListTap(pos)
         if self.tab == "collections" and self.group then
             self:confirmRemoveFromCollection(item)
         else
-            self:showBookMenu(item.file)
+            -- A small anchor right on the "..." (see buildBookRow).
+            local dots_h = Screen:scaleBySize(20)
+            local dy = item.dots_y or math.floor(slot_h / 2)
+            self:openBookMenu(item.file, Geom:new{
+                x = L.margin + L.list_w - L.dots_w, y = L.y_list + (i - 1) * slot_h + dy - math.floor(dots_h / 2),
+                w = L.dots_w, h = dots_h,
+            }, "side")
         end
     else
         KoboldReader.tapOpen(self, item.file)
@@ -1572,6 +1590,25 @@ end
 -- KOReader's book menu for `file`: the dialog the file browser shows on a
 -- long-press (book status, delete, book information, and so on). It opens on
 -- top of this screen; changes it makes are picked up by hookFileManager.
+-- Kobold's book menu (Read now, View Details, KOReader Details), pointing
+-- at `anchor` (a Geom on screen). Changes made from it reload the list.
+-- `align` "side" opens it beside the anchor (book rows, as on the e-reader).
+function KoboldMyBooks:openBookMenu(file, anchor, align)
+    require("kobold.ui.book_menu").show{
+        file = file, screen = self, anchor = anchor,
+        align = align ~= "side" and align or nil, side = align == "side",
+        on_change = function() self:scheduleReload() end,
+    }
+end
+
+-- Screen rectangle of the "..." column of the list row under `pos`.
+function KoboldMyBooks:rowRect(pos)
+    local L = self.L
+    local _n, slot_h, row_h = self:rowSize()
+    local i = math.floor((pos.y - L.y_list) / slot_h)
+    return Geom:new{ x = L.margin + L.list_w - L.dots_w, y = L.y_list + i * slot_h, w = L.dots_w, h = row_h }
+end
+
 function KoboldMyBooks:showBookMenu(file)
     local fc = fileChooser()
     local show = fc and (fc.showFileDialog or fc.onFileHold)

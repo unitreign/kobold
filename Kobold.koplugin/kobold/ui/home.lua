@@ -240,17 +240,17 @@ function KoboldHome:build()
             local x = margin + (i - 1) * (top_w + L.top_gap)
             KoboldTaps.add(self, "KoboldTop" .. i, x, y_read, top_w, top_h,
                 function() KoboldReader.tapOpen(self, file) end)
-            -- Hold: the same book menu as the "..." in My Books. Home is read
-            -- again after the menu changed something.
+            -- Hold: Kobold's book menu (Read now, View Details, KOReader
+            -- Details), pointing at the cover. Home is read again after a change.
             KoboldTaps.hold(self, "KoboldTopHold" .. i, x, y_read, top_w, top_h, function()
-                local shown = KoboldWidgets.showBookMenu(file, function()
-                    if self.onKoboldReturn then self:onKoboldReturn() end
-                end)
-                if not shown then
-                    UIManager:show(require("ui/widget/infomessage"):new{
-                        text = require("gettext")("The book menu is not available."),
-                    })
-                end
+                require("kobold.ui.book_menu").show{
+                    file = file, screen = self,
+                    anchor = Geom:new{ x = x, y = y_read, w = top_w, h = top_h },
+                    align = i <= 2 and "left" or "right",
+                    on_change = function()
+                        if self.onKoboldReturn then self:onKoboldReturn() end
+                    end,
+                }
             end)
         end
     end

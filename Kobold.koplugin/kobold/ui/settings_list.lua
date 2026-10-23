@@ -32,7 +32,7 @@ end
 
 -- Italic face for action words (Start, Edit, Reset), as on the e-reader.
 local function actionFace(size)
-    local ok, face = pcall(function() return Font:getFace("infont", size) end)
+    local ok, face = pcall(function() return KoboldWidgets.italicFace(size) end)
     if ok and face then return face end
     return KoboldWidgets.face(size)
 end

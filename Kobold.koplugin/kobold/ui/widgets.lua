@@ -43,6 +43,15 @@ function KoboldWidgets.face(size)
     return Font:getFace("cfont", size)
 end
 
+-- Italic serif for menu items, action words and buttons: KOReader's Noto
+-- Serif Italic. (KOReader's "infont" is a monospace font, not italic.)
+-- Falls back to the normal face when the font file is missing.
+function KoboldWidgets.italicFace(size)
+    local ok, face = pcall(function() return Font:getFace("NotoSerif-Italic.ttf", size) end)
+    if ok and face then return face end
+    return KoboldWidgets.face(size)
+end
+
 function KoboldWidgets.bookTitle(file)
     local t = file:match("([^/]+)%.[^%.]+$") or file
     if #t > 40 then t = t:sub(1, 37) .. "..." end
@@ -72,13 +81,16 @@ function KoboldWidgets.makeCover(file, w, h, opts)
     local line = (opts and opts.outline == false) and 0 or Screen:scaleBySize(1)
     local bb = KoboldCovers.get(file, w, h)
     if bb then
+        -- The size is worked out once here and the cover is scaled to
+        -- exactly that (it already has the cover's shape), so the outline
+        -- fits it. Letting ImageWidget fit it again rounded differently and
+        -- left a pixel or two of white inside the outline.
         local sw, sh = KoboldCovers.fittedSize(file, w - 2 * line, h - 2 * line)
         local image = ImageWidget:new{
             image = bb,
             image_disposable = false,
             width = sw,
             height = sh,
-            scale_factor = 0,
         }
         if line == 0 then return image end
         return FrameContainer:new{
@@ -149,7 +161,25 @@ end
 -- One of Kobold's own icons (icons/<name>.svg in the plugin). Drawn as a
 -- KOReader icon, so night mode turns it white on black like KOReader's
 -- own. Falls back to KOReader icon `fallback` when the file is missing.
+-- Kobold Settings > Icons can switch to KOReader's own icons instead: then
+-- `fallback` is always used. KOReader's Wi-Fi icon has only two states.
+local KOREADER_WIFI = {
+    ["wifi-off"] = "wifi.open.0", ["wifi-disconnected"] = "wifi.open.0",
+    ["wifi-weak"] = "wifi.open.100", ["wifi-medium"] = "wifi.open.100",
+    ["wifi-strong"] = "wifi.open.100",
+}
+
+-- True when Kobold's own icons are used (the default).
+function KoboldWidgets.koboldIcons()
+    return KoboldPrefs.get("icons") ~= "koreader"
+end
+
 function KoboldWidgets.customIcon(name, size, fallback)
+    fallback = KOREADER_WIFI[name] or fallback
+    if not KoboldWidgets.koboldIcons() then
+        -- Older KOReader builds may lack a newer icon (such as "library").
+        return KoboldWidgets.icon(fallback or name, size, { fallback = "appbar.filebrowser" })
+    end
     local path = KoboldMeta.icon(name .. ".svg")
     if path and lfs.attributes(path, "mode") == "file" then
         local ok, widget = pcall(function()
@@ -384,7 +414,7 @@ function KoboldWidgets.statusBar(content_w)
         HorizontalSpan:new{ width = gap },
         KoboldBattery:new{ size = widths[3], slot_h = size, style = style },
         HorizontalSpan:new{ width = gap },
-        KoboldWidgets.customIcon("search", size, "appbar.search"),
+        KoboldWidgets.customIcon("search", size, KoboldWidgets.hasIcon("lookup.search") and "lookup.search" or "appbar.search"),
     }
     local spacer = content_w - time_text:getSize().w - icons:getSize().w
     return HorizontalGroup:new{
@@ -680,6 +710,18 @@ function KoboldWidgets.addScreenEvents(ScreenClass)
         UIManager:scheduleIn(2, function() KoboldWidgets.refreshStatusBar(self) end)
     end
     function ScreenClass:onKoboldSettingsChanged() KoboldWidgets.refreshStatusBar(self) end
+    -- Kobold Settings > Icons changed: the whole screen is built again, so
+    -- the status bar and nav bar both use the other icon set.
+    function ScreenClass:onKoboldIconsChanged()
+        if self.kobold_tab == "home" then
+            self:refreshCovers()
+        elseif self.kobold_tab == "books" then
+            self:refresh()
+        else
+            self:init()
+            UIManager:setDirty(self, "ui")
+        end
+    end
     function ScreenClass:onNotCharging()
         KoboldWidgets.refreshStatusBar(self)
         UIManager:scheduleIn(2, function() KoboldWidgets.refreshStatusBar(self) end)
