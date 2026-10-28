@@ -49,6 +49,7 @@ end
 -- { { rect = Geom, on_tap = fn }, ... } in screen coordinates for a list
 -- drawn with its top-left corner at (x, y), and the index of the first item
 -- left out (nil when everything fit).
+-- opts.value_ratio: share of the width for the values (default 0.38).
 -- opts.from: first item to show (default 1). opts.max_h: stop before the
 -- list grows past this height; a section band is never left last.
 function KoboldSettingsList.build(spec, x, y, w, opts)
@@ -58,7 +59,7 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
     local row_pad  = Screen:scaleBySize(9)
     local gap      = Screen:scaleBySize(16)
     local line_h   = Screen:scaleBySize(1)
-    local value_w  = math.floor(w * 0.38)
+    local value_w  = math.floor(w * (opts.value_ratio or 0.38))
     local text_w   = w - value_w - gap
     local from     = opts.from or 1
 

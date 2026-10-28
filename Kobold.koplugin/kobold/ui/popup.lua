@@ -138,15 +138,16 @@ end
 -- what opened it). Its base covers the box's right border.
 local SideArrow = Widget:extend{
     cy = 0,         -- screen y of the tip
-    box_right = 0,  -- screen x of the box's right edge
+    box_right = 0,  -- screen x of the box's right edge (pointing right)
+    box_left = nil, -- screen x of the box's left edge (pointing left)
 }
 
 function SideArrow:paintTo(bb)
     local h, b = arrowH(), border()
     local inner = math.ceil(b * 1.42)
     for c = 0, h + b - 1 do
-        -- Column c counts from the tip, going left toward the box.
-        local x = self.box_right + h - 1 - c
+        -- Column c counts from the tip toward the box.
+        local x = self.box_left and (self.box_left - h + c) or (self.box_right + h - 1 - c)
         if c < h then
             bb:paintRect(x, self.cy - c, 1, 2 * c + 1, Blitbuffer.COLOR_BLACK)
         end
@@ -162,13 +163,18 @@ function SideArrow:getSize()
 end
 
 -- Like place, with the arrow on the box's right edge pointing right at
--- screen y `arrow_y` (kept inside the box's height).
-function KoboldPopup.placeSide(dimen, fx, fy, box, arrow_y)
+-- screen y `arrow_y` (kept inside the box's height). `left` puts it on the
+-- left edge, pointing left.
+function KoboldPopup.placeSide(dimen, fx, fy, box, arrow_y, left)
     local layer = KoboldPopup.place(dimen, fx, fy, box)
     local size = box:getSize()
     local h = arrowH()
     local cy = math.max(fy + h + border(), math.min(fy + size.h - h - border(), arrow_y))
-    layer[#layer + 1] = SideArrow:new{ cy = cy, box_right = fx + size.w }
+    if left then
+        layer[#layer + 1] = SideArrow:new{ cy = cy, box_left = fx }
+    else
+        layer[#layer + 1] = SideArrow:new{ cy = cy, box_right = fx + size.w }
+    end
     return layer
 end
 
@@ -177,7 +183,7 @@ local function region(popup)
     local d = popup.frame_dimen
     if not d then return nil end
     local h = arrowH()
-    return Geom:new{ x = d.x, y = d.y - h, w = d.w + h, h = d.h + 2 * h }
+    return Geom:new{ x = d.x - h, y = d.y - h, w = d.w + 2 * h, h = d.h + 2 * h }
 end
 
 -- Shows `popup` and refreshes only its box (popup.frame_dimen) and arrow.

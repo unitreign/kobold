@@ -467,7 +467,7 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
         function() require("kobold.ui.brightness").show() end,
         function() require("kobold.ui.wifi").show() end,
         function() require("kobold.ui.battery_popup").show() end,
-        KoboldWidgets.showFileSearch,
+        function() KoboldWidgets.openSearch(screen) end,
     }
     for i, action in ipairs(actions) do
         local x, icon_w, icon_gap = statusIconX(margin, content_w, i)
@@ -545,6 +545,15 @@ function KoboldWidgets.debugScreenshot()
         UIManager:show(InfoMessage:new{ text = "Screenshot failed: " .. tostring(err) })
     end
     UIManager:scheduleIn(2, function() UIManager:setDirty("all", "full") end)
+end
+
+-- The search icon: Kobold's search page, or KOReader's file search when
+-- Kobold Settings > Toolbar > Search says so.
+function KoboldWidgets.openSearch(screen)
+    if KoboldPrefs.get("search") == "koreader" then
+        return KoboldWidgets.showFileSearch()
+    end
+    require("kobold.ui.search").show(screen)
 end
 
 -- KOReader's file search (file names, not text inside books), the same

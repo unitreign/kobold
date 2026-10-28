@@ -270,7 +270,11 @@ function KoboldMyBooks:init()
     -- zone that looks up what is under the finger when it fires.
     KoboldTaps.add(self, "KoboldTabs", 0, L.y_tabs, W, L.tabs_h, function(ges)
         local i = hitIndex(self.tab_hits, ges.pos)
-        if i then self:showTab(visibleTabs()[i].id) end
+        if i and self:inCollection() then
+            self:closeGroup()
+        elseif i then
+            self:showTab(visibleTabs()[i].id)
+        end
     end)
     KoboldTaps.add(self, "KoboldPills", 0, L.y_pills, W, L.pills_h, function(ges)
         local i = hitIndex(self.pill_hits, ges.pos)
@@ -371,6 +375,7 @@ end
 -- True on the Books and Series tabs when grid view is chosen. On Series it
 -- covers both the series list and the books of one series.
 function KoboldMyBooks:isGrid()
+    if self:inCollection() then return self:collView().view == "grid" end
     return self.view == "grid" and (self.tab == "books" or self.tab == "series")
 end
 
@@ -381,6 +386,9 @@ function KoboldMyBooks:applyList()
     elseif self.tab == "books" then
         local list = KoboldMyBooksData.filter(self.books, self.filter)
         self.list = KoboldMyBooksData.sort(list, self.sort)
+    elseif self:inCollection() then
+        local v = self:collView()
+        self.list = KoboldMyBooksData.sort(KoboldMyBooksData.filter(self.group.books, v.filter), v.sort)
     elseif self.group then
         self.list = self.group.books
     else
@@ -493,6 +501,28 @@ end
 -- a black bar that sits on the rule. Records each tab's tap rectangle.
 function KoboldMyBooks:buildTabs()
     local L = self.L
+    if self:inCollection() then
+        -- Inside a collection the tabs make way for a back arrow and the
+        -- collection's name; the whole row goes back to the list.
+        local arrow = Screen:scaleBySize(24)
+        self.tab_hits = { Geom:new{ x = 0, y = L.y_tabs, w = L.W, h = L.tabs_h } }
+        return OverlapGroup:new{
+            dimen = Geom:new{ w = L.content_w, h = L.tabs_h },
+            VerticalGroup:new{
+                VerticalSpan:new{ width = L.tabs_h - L.tab_rule_h },
+                LineWidget:new{ dimen = Geom:new{ w = L.content_w, h = L.tab_rule_h }, background = Blitbuffer.COLOR_DARK_GRAY },
+            },
+            LeftContainer:new{
+                dimen = Geom:new{ w = L.content_w, h = L.tabs_h },
+                HorizontalGroup:new{
+                    align = "center",
+                    KoboldWidgets.icon("chevron.left", arrow),
+                    HorizontalSpan:new{ width = Screen:scaleBySize(10) },
+                    TextWidget:new{ text = self.group.name, face = KoboldWidgets.face(17), max_width = L.content_w - 2 * arrow },
+                },
+            },
+        }
+    end
     local row = HorizontalGroup:new{}
     local x = L.margin
     self.tab_hits = {}
@@ -577,6 +607,12 @@ function KoboldMyBooks:buildPills()
             { label = _("Filter: ") .. FILTER_LABELS[self.filter], action = function() self:showFilterDialog() end },
             { label = _("Sort: ") .. SORT_LABELS[self.sort].pill, action = function() self:showSortDialog() end },
         }
+    elseif self:inCollection() then
+        local v = self:collView()
+        specs = {
+            { label = _("Filter: ") .. FILTER_LABELS[v.filter], action = function() self:showCollFilterDialog() end },
+            { label = _("Sort: ") .. SORT_LABELS[v.sort].pill, action = function() self:showCollSortDialog() end },
+        }
     elseif self.group then
         specs = { {
             label = self.group.name, back = true,
@@ -614,8 +650,9 @@ function KoboldMyBooks:buildPills()
         x = x + w + L.pill_gap
     end
 
-    -- Books and Series tabs: "..." at the right end, for list or grid view.
-    if self.tab == "books" or self.tab == "series" then
+    -- "..." at the right end: list or grid view on Books and Series; the
+    -- collection menu on Collections.
+    if self.tab == "books" or self.tab == "series" or self.tab == "collections" then
         local dots = TextWidget:new{ text = "…", face = KoboldWidgets.face(20), bold = true }
         local dots_w = dots:getSize().w
         -- Kept a little in from the right edge.
@@ -628,86 +665,25 @@ function KoboldMyBooks:buildPills()
             x = dots_x - 2 * L.pill_gap, y = L.y_pills,
             w = dots_w + inset + 3 * L.pill_gap, h = L.pills_h,
         }
-        self.pill_actions[#self.pill_actions + 1] = function() self:showViewDialog() end
-    end
-
-    -- Collections tab: a plus at the right end. On the list it creates a
-    -- new collection; inside a collection it adds books to it.
-    if self.tab == "collections" then
-        local plus_size = Screen:scaleBySize(26)
-        -- Width of the pills so far, from the loop above. Not row:getSize():
-        -- that would fix the group's layout before the plus is added, and
-        -- painting the unlaid-out plus crashes KOReader.
-        local used = x - L.margin - L.pill_gap
-        row[#row + 1] = HorizontalSpan:new{ width = math.max(0, L.content_w - used - plus_size) }
-        row[#row + 1] = KoboldWidgets.plusIcon(plus_size)
-        -- Tap area a little wider than the icon, reaching the right edge.
-        local hit_w = plus_size + 2 * L.pill_gap
-        self.pill_hits[#self.pill_hits + 1] = Geom:new{
-            x = L.margin + L.content_w - plus_size - L.pill_gap, y = L.y_pills,
-            w = hit_w, h = L.pills_h,
-        }
+        local dots_rect = Geom:new{ x = dots_x, y = L.y_pills, w = dots_w, h = L.pills_h }
         self.pill_actions[#self.pill_actions + 1] = function()
-            if self.group then self:addBookToCollection() else self:newCollection() end
+            if self.tab == "collections" then self:showCollectionsMenu(dots_rect) else self:showViewDialog() end
         end
     end
-    return row
-end
 
--- New collection: asks for a name, like KOReader's own "New collection",
--- creates it in KOReader's collections, then opens it here (empty; books are
--- added from a book's "..." menu, Add to collection).
-function KoboldMyBooks:newCollection()
-    local ok_rc, ReadCollection = pcall(require, "readcollection")
-    if not ok_rc or not ReadCollection or not ReadCollection.addCollection then
-        UIManager:show(InfoMessage:new{ text = _("KOReader's collections are not available.") })
-        return
-    end
-    local dialog
-    dialog = InputDialog:new{
-        title = _("New collection"),
-        input_hint = _("Collection name"),
-        buttons = {{
-            {
-                text = _("Cancel"),
-                id = "close",
-                callback = function() UIManager:close(dialog) end,
-            },
-            {
-                text = _("Create"),
-                is_enter_default = true,
-                callback = function()
-                    local name = (dialog:getInputText() or ""):match("^%s*(.-)%s*$")
-                    if name == "" then return end
-                    if ReadCollection.coll and ReadCollection.coll[name] then
-                        UIManager:show(InfoMessage:new{
-                            text = _("A collection with that name already exists."),
-                            timeout = 3,
-                        })
-                        return
-                    end
-                    UIManager:close(dialog)
-                    local ok = pcall(function()
-                        ReadCollection:addCollection(name)
-                        ReadCollection:write()
-                    end)
-                    if not ok then
-                        UIManager:show(InfoMessage:new{ text = _("The collection could not be created.") })
-                        return
-                    end
-                    self:openCollection(name)
-                end,
-            },
-        }},
-    }
-    UIManager:show(dialog)
-    dialog:onShowKeyboard()
+    return row
 end
 
 local function readCollection()
     local ok, ReadCollection = pcall(require, "readcollection")
     if ok and ReadCollection and ReadCollection.coll then return ReadCollection end
     return nil
+end
+
+-- Saves KOReader's collections file. KOReader itself only writes it when its
+-- collections screen closes, so changes made here are written right away.
+local function saveCollections(RC, names)
+    pcall(function() RC:write(names) end)
 end
 
 -- Item under `pos` in the list, or nil (same rows as onListTap).
@@ -717,87 +693,96 @@ function KoboldMyBooks:itemAt(pos)
     return self.page_items and self.page_items[i]
 end
 
--- Long-press on the Collections list: that collection's options.
+-- True inside one collection (Collections tab, a collection opened).
+function KoboldMyBooks:inCollection()
+    return self.tab == "collections" and self.group ~= nil
+end
+
+-- Long-press: a collection's menu on the Collections list; a book's menu in
+-- the Files tab.
 function KoboldMyBooks:onListHold(pos)
     local item = self:itemAt(pos)
     if not item then return end
     if self.tab == "files" then
         if item.is_dir then self:showFolderMenu(item.path) else self:openBookMenu(item.file, self:rowRect(pos), "side") end
     elseif self.tab == "collections" and not self.group then
-        self:showCollectionOptions(item)
+        local L = self.L
+        local _n, slot_h, row_h = self:rowSize()
+        local i = math.floor((pos.y - L.y_list) / slot_h)
+        self:showCollectionOptions(item, Geom:new{
+            x = L.margin, y = L.y_list + i * slot_h, w = math.floor(L.list_w * 0.4), h = row_h,
+        })
     end
 end
 
--- Options for one collection, like KOReader's long-press menu on its
--- collections screen: set as default, rename, remove. KOReader's built-in
--- Favorites cannot be renamed or removed, as in KOReader.
-function KoboldMyBooks:showCollectionOptions(group)
+-- A collection's menu, beside its row with the arrow pointing at it:
+-- Manage, Rename, Delete. KOReader's built-in Favorites cannot be renamed
+-- or deleted, as in KOReader.
+function KoboldMyBooks:showCollectionOptions(group, anchor)
     local RC = readCollection()
     if not RC then return end
-    local name = group.key
-    local is_default = RC.coll_default == name
+    local items = {
+        { text = _("Manage"), callback = function() self:manageCollection(group.key) end },
+    }
+    if group.key ~= RC.default_collection_name then
+        items[#items + 1] = { text = _("Rename"), callback = function() self:renameCollection(group) end }
+        items[#items + 1] = { text = _("Delete"), callback = function() self:confirmRemoveCollection(group) end }
+    end
+    require("kobold.ui.menu").show{ items = items, anchor = anchor, place = "right" }
+end
+
+-- Manage collection panel (collection_manage.lua) for collection `name`.
+-- `create` makes a new collection with that name when saved.
+function KoboldMyBooks:manageCollection(name, create)
+    require("kobold.ui.collection_manage").show{
+        collection = name, books = self.books, create = create,
+        on_done = function(saved)
+            self:reload()
+            if create then self:openCollection(saved) end
+        end,
+    }
+end
+
+-- New collection: the "Create new collection" dialog (a name, Cancel /
+-- Next), then the Manage collection panel to add books; the collection is
+-- created when that is saved.
+function KoboldMyBooks:newCollection()
+    local RC = readCollection()
+    if not RC or not RC.addCollection then
+        UIManager:show(InfoMessage:new{ text = _("KOReader's collections are not available.") })
+        return
+    end
     local dialog
-    local buttons = {
-        {{
-            text = is_default and _("Reset default") or _("Set default"),
-            callback = function()
-                UIManager:close(dialog)
-                self:toggleDefaultCollection(name)
-            end,
+    dialog = InputDialog:new{
+        title = _("Create new collection"),
+        input_hint = _("Collection name"),
+        buttons = {{
+            {
+                text = _("Cancel"),
+                id = "close",
+                callback = function() UIManager:close(dialog) end,
+            },
+            {
+                text = _("Next"),
+                is_enter_default = true,
+                callback = function()
+                    local name = (dialog:getInputText() or ""):match("^%s*(.-)%s*$")
+                    if name == "" then return end
+                    if RC.coll[name] then
+                        UIManager:show(InfoMessage:new{
+                            text = _("A collection with that name already exists."),
+                            timeout = 3,
+                        })
+                        return
+                    end
+                    UIManager:close(dialog)
+                    self:manageCollection(name, true)
+                end,
+            },
         }},
     }
-    if name ~= RC.default_collection_name then
-        buttons[#buttons + 1] = {
-            {
-                text = _("Remove collection"),
-                callback = function()
-                    UIManager:close(dialog)
-                    self:confirmRemoveCollection(group)
-                end,
-            },
-            {
-                text = _("Rename collection"),
-                callback = function()
-                    UIManager:close(dialog)
-                    self:renameCollection(group)
-                end,
-            },
-        }
-    end
-    dialog = ButtonDialog:new{
-        title = group.name,
-        title_align = "center",
-        buttons = buttons,
-    }
     UIManager:show(dialog)
-end
-
--- Saves KOReader's collections file. KOReader itself only writes it when its
--- collections screen closes, so changes made here are written right away.
-local function saveCollections(RC, names)
-    pcall(function() RC:write(names) end)
-end
-
--- The default collection is the one KOReader suggests when adding books.
-function KoboldMyBooks:toggleDefaultCollection(name)
-    local RC = readCollection()
-    if not RC then return end
-    local settings = RC.coll_settings[name]
-    if not settings then return end
-    local updated = { [name] = true }
-    if RC.coll_default == name then
-        RC.coll_default = nil
-        settings.default = nil
-    else
-        local old = RC.coll_default
-        if old and RC.coll_settings[old] then
-            RC.coll_settings[old].default = nil
-            updated[old] = true
-        end
-        RC.coll_default = name
-        settings.default = true
-    end
-    saveCollections(RC, updated)
+    dialog:onShowKeyboard()
 end
 
 function KoboldMyBooks:renameCollection(group)
@@ -855,49 +840,64 @@ function KoboldMyBooks:confirmRemoveCollection(group)
     })
 end
 
--- Inside a collection, the plus adds a book: KOReader's file picker, the
--- same one its own "Add a book to collection" uses.
-function KoboldMyBooks:addBookToCollection()
-    local RC = readCollection()
-    local group = self.group
-    local name = group and group.key
-    if not RC or not name or not RC.coll[name] then return end
-    -- Every library book not in the collection yet, by title.
-    local books = {}
-    for _i, b in ipairs(self.books) do
-        if not RC.coll[name][b.file] then books[#books + 1] = b end
-    end
-    books = KoboldMyBooksData.sort(books, "title_asc")
-    require("kobold.ui.book_picker").show{
-        title = group.name,
-        books = books,
-        on_add = function(picked)
-            local ok = pcall(function()
-                RC:addItemsMultiple(picked, { [name] = true })
-                RC:write({ [name] = true })
-            end)
-            if not ok then
-                UIManager:show(InfoMessage:new{ text = _("The books could not be added.") })
-            end
-            self:scheduleReload()
-        end,
+-- Filter, sort and cover view inside a collection, kept for each collection.
+local COLL_VIEWS_KEY = "coll_views"
+
+local function collView(name)
+    local all = KoboldPrefs.get(COLL_VIEWS_KEY)
+    local v = type(all) == "table" and all[name] or nil
+    return {
+        filter = v and v.filter or "all",
+        sort = v and v.sort or "opened_desc",
+        view = v and v.view or "list",
     }
 end
 
--- The "..." of a book inside a collection removes it from the collection
--- (the book itself is not touched).
-function KoboldMyBooks:confirmRemoveFromCollection(item)
-    local RC = readCollection()
+function KoboldMyBooks:setCollView(field, value)
     local name = self.group and self.group.key
-    if not RC or not name then return end
-    UIManager:show(ConfirmBox:new{
-        text = _("Remove from this collection?") .. "\n\n" .. item.title,
-        ok_text = _("Remove"),
-        ok_callback = function()
-            RC:removeItem(item.file, name)  -- writes the collections file
-            self:scheduleReload()
-        end,
-    })
+    if not name then return end
+    local all = KoboldPrefs.get(COLL_VIEWS_KEY)
+    all = type(all) == "table" and all or {}
+    all[name] = all[name] or {}
+    all[name][field] = value
+    KoboldPrefs.set(COLL_VIEWS_KEY, all)
+    self.page = 1
+    self:applyList()
+    self:refresh()
+end
+
+function KoboldMyBooks:collView()
+    return collView(self.group and self.group.key or "")
+end
+
+function KoboldMyBooks:showCollFilterDialog()
+    self:showChoiceDialog(_("Filter"), KoboldMyBooksData.FILTERS, self:collView().filter,
+        function(id) return FILTER_LABELS[id] end,
+        function(id) self:setCollView("filter", id) end)
+end
+
+function KoboldMyBooks:showCollSortDialog()
+    self:showChoiceDialog(_("Sort"), KoboldMyBooksData.SORTS, self:collView().sort,
+        function(id) return SORT_LABELS[id].menu end,
+        function(id) self:setCollView("sort", id) end)
+end
+
+-- The "..." on the Collections tab: New collection on the list; Cover view
+-- (or List view) and Manage collection inside a collection.
+function KoboldMyBooks:showCollectionsMenu(anchor)
+    local items
+    if self.group then
+        local grid = self:collView().view == "grid"
+        items = {
+            { text = grid and _("List view") or _("Cover view"), callback = function()
+                self:setCollView("view", grid and "list" or "grid")
+            end },
+            { text = _("Manage collection"), callback = function() self:manageCollection(self.group.key) end },
+        }
+    else
+        items = { { text = _("New collection"), callback = function() self:newCollection() end } }
+    end
+    require("kobold.ui.menu").show{ items = items, anchor = anchor, align = "right" }
 end
 
 -- Shows collection `name` (by its ReadCollection key) inside the
@@ -1099,6 +1099,21 @@ function KoboldMyBooks:buildGroupRow(group)
     if self.tab == "series" then
         return self:buildSeriesRow(group)
     end
+    if self.tab == "collections" then
+        -- The collection's name on the left in italics, its book count on
+        -- the right.
+        local count = TextWidget:new{ text = countText(#group.books), face = KoboldWidgets.italicFace(15) }
+        local name_w = L.list_w - count:getSize().w - 2 * L.col_gap
+        return KoboldWidgets.fixed(L.list_w, row_h, HorizontalGroup:new{
+            align = "center",
+            HorizontalSpan:new{ width = L.col_gap },
+            LeftContainer:new{
+                dimen = Geom:new{ w = name_w, h = row_h },
+                TextWidget:new{ text = group.name, face = KoboldWidgets.italicFace(18), max_width = name_w },
+            },
+            count,
+        })
+    end
     row[#row + 1] = LeftContainer:new{
         dimen = Geom:new{ w = text_w, h = row_h },
         VerticalGroup:new{
@@ -1128,10 +1143,14 @@ function KoboldMyBooks:emptyText()
         if self.filter == "all" then return _("No books found in your home folder.") end
         return _("No books match this filter.")
     end
+    if self:inCollection() then
+        if self:collView().filter ~= "all" then return _("No books match this filter.") end
+        return _("No books in this collection yet. Use ... > Manage collection to add some.")
+    end
     if self.group then return _("No books here.") end
     if self.tab == "authors" then return _("No authors found.") end
     if self.tab == "series" then return _("No series found.") end
-    return _("No collections yet.")
+    return _("No collections yet. Use ... > New collection to make one.")
 end
 
 -- The rows of the current page, each with a separator under it. Always
@@ -1342,17 +1361,13 @@ function KoboldMyBooks:onListTap(pos)
     elseif groups then
         self:openGroup(item)
     elseif pos.x >= L.margin + L.list_w - L.dots_w then
-        if self.tab == "collections" and self.group then
-            self:confirmRemoveFromCollection(item)
-        else
-            -- A small anchor right on the "..." (see buildBookRow).
-            local dots_h = Screen:scaleBySize(20)
-            local dy = item.dots_y or math.floor(slot_h / 2)
-            self:openBookMenu(item.file, Geom:new{
-                x = L.margin + L.list_w - L.dots_w, y = L.y_list + (i - 1) * slot_h + dy - math.floor(dots_h / 2),
-                w = L.dots_w, h = dots_h,
-            }, "side")
-        end
+        -- A small anchor right on the "..." (see buildBookRow).
+        local dots_h = Screen:scaleBySize(20)
+        local dy = item.dots_y or math.floor(slot_h / 2)
+        self:openBookMenu(item.file, Geom:new{
+            x = L.margin + L.list_w - L.dots_w, y = L.y_list + (i - 1) * slot_h + dy - math.floor(dots_h / 2),
+            w = L.dots_w, h = dots_h,
+        }, "side")
     else
         KoboldReader.tapOpen(self, item.file)
     end

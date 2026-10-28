@@ -148,6 +148,33 @@ function KoboldSettings:spec()
                 end, done)
             end,
         },
+        { section = _("Toolbar") },
+        {
+            title = _("Search"),
+            desc = _("What the search icon opens: Kobold's search page, or KOReader's file search."),
+            value = KoboldPrefs.get("search") == "koreader" and _("KOReader") or _("Kobold"),
+            on_tap = function()
+                KoboldEditors.choose(_("Search"), {
+                    { id = "kobold", label = _("Kobold") },
+                    { id = "koreader", label = _("KOReader") },
+                }, KoboldPrefs.get("search") == "koreader" and "koreader" or "kobold", function(id)
+                    KoboldPrefs.set("search", id == "koreader" and "koreader" or nil)
+                end, done)
+            end,
+        },
+        {
+            title = _("Light steps"),
+            desc = _("How much each - or + tap changes brightness and natural light, in percent."),
+            value = tostring(tonumber(KoboldPrefs.get("light_step")) or 1) .. "%",
+            on_tap = function()
+                KoboldEditors.number({
+                    title = _("Light steps"),
+                    value = tonumber(KoboldPrefs.get("light_step")) or 1,
+                    min = 1, max = 20, default = 1,
+                    info = _("Percent of the range per tap."),
+                }, function(v) KoboldPrefs.set("light_step", v ~= 1 and v or nil) end, done)
+            end,
+        },
         { section = _("Status bar") },
         {
             title = _("Battery"),
