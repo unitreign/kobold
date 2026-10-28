@@ -1,9 +1,7 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="images/kobold-white.svg" />
-  <img src="Kobold.koplugin/icons/kobold.svg" width="96" alt="Kobold Logo" />
-</picture>
+<img src="Kobold.koplugin/icons/kobold.svg" width="96" alt="Kobold Logo" />
+<img src="images/kobold-white.svg" width="96" alt="Kobold Logo" />
 
 # Kobold
 
