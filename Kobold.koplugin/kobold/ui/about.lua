@@ -1,8 +1,7 @@
 -- kobold/ui/about.lua — Kobold
--- About Kobold, opened from the More tab, in the same full-screen style as
--- Kobold Settings: the Kobold icon centred at the top, name, version and a
--- few words on what it is, the project rows, and a QR code to the project
--- page (an e-reader cannot open links, a phone can scan it).
+-- About Kobold, opened from the More tab, in the same panel style as Kobold
+-- Settings: the Kobold icon centred at the top, name, version and a few
+-- words on what it is, then the project rows (source code, license, Ko-fi).
 
 local Blitbuffer      = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -36,7 +35,6 @@ local KoboldAbout = InputContainer:extend{
 
 -- `follow_night` lets the image invert with the page in night mode (the
 -- logo is a black drawing; kept original it would vanish on the black page).
--- The QR code keeps its original colors so it still scans.
 local function image(file, size, follow_night)
     if not file then return nil end
     local ok, widget = pcall(function()
@@ -116,45 +114,19 @@ function KoboldAbout:build()
     -- Tap a row's name for its details (tooltip). The group's layout is
     -- measured here, so it is reset once everything is added (see the end).
     local list_y = y0 + page:getSize().h
+    local function bare(url) return (url:gsub("^https?://", "")) end
     local list, hits = KoboldSettingsList.build({
         { section = _("Project") },
-        {
-            title = _("Source code"),
-            desc = KoboldMeta.REPO:gsub("^https?://", ""),
-            value = _("GitHub"),
-        },
+        { title = _("Source code"), value = bare(KoboldMeta.REPO), action = true },
         {
             title = _("License"),
             desc = _("Free and open source software under the GNU General Public License, version 3."),
             value = KoboldMeta.LICENSE,
         },
-    }, x0, list_y, content_w)
+        { title = _("Ko-fi"), value = bare(KoboldMeta.KOFI), action = true },
+    }, x0, list_y, content_w, { value_ratio = 0.6 })
     self.hits = hits
     page[#page + 1] = list
-
-    -- QR code to the project page, as large as fits above the bottom margin
-    -- (at most 150 px before scaling), with a caption. Left out when there
-    -- is no room for a scannable size.
-    local caption = TextWidget:new{
-        text = _("Scan to open the project page"),
-        face = KoboldWidgets.face(13),
-        fgcolor = KoboldWidgets.subtitleColor(),
-    }
-    page:resetLayout()
-    local room = inner_h - page:getSize().h - 3 * gap - caption:getSize().h
-    local qr_size = math.min(Screen:scaleBySize(150), room)
-    if qr_size >= Screen:scaleBySize(90) then
-        local qr = image(KoboldMeta.icon("kobold-qr.png"), qr_size)
-        if qr then
-            page[#page + 1] = VerticalSpan:new{ width = 2 * gap }
-            page[#page + 1] = centred(content_w, qr)
-            page[#page + 1] = VerticalSpan:new{ width = gap }
-            page[#page + 1] = centred(content_w, caption)
-            -- page:getSize() above cached the group's layout; drop it so the
-            -- rows just added get laid out too (painting them crashed).
-            page:resetLayout()
-        end
-    end
 
     page:resetLayout()
     local panel = FrameContainer:new{

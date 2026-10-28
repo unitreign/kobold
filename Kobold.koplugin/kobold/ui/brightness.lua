@@ -215,7 +215,7 @@ function KoboldBrightness:setValue(i, value)
     end)
 end
 
--- Taps on -/+ step by a tenth of the range. Taps on the track jump to that point.
+-- Taps on -/+ step by the light step setting (1% of the range by default). Taps on the track jump to that point.
 -- Taps outside the box close the popup. Taps inside the box but off a control do nothing.
 function KoboldBrightness:onTapBrightness(_, ges)
     local pos = ges.pos
@@ -230,7 +230,10 @@ function KoboldBrightness:onTapBrightness(_, ges)
     for i, s in ipairs(self.sliders) do
         local hit = self.hit[i]
         if hit then
-            local step = math.max(1, math.floor((s.max - s.min) / 10 + 0.5))
+            -- Kobold Settings > Toolbar > Light steps: percent of the
+            -- range per tap (1% by default), at least one unit.
+            local pct = tonumber(require("kobold.data.prefs").get("light_step")) or 1
+            local step = math.max(1, math.floor((s.max - s.min) * pct / 100 + 0.5))
             local current = s.get()
             if pos:intersectWith(hit.minus) then
                 self:setValue(i, current - step)

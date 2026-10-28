@@ -3,8 +3,9 @@
 -- _meta.lua, logs). Change VERSION here when releasing.
 
 local KoboldMeta = {
-    VERSION = "1.3",
+    VERSION = "1.4",
     REPO    = "https://github.com/unitreign/kobold",
+    KOFI    = "https://ko-fi.com/unitreign",
     LICENSE = "GPL-3.0",
     -- Developer tools, default state. When on: long-press the clock in the
     -- status bar to save a screenshot (see KoboldWidgets.statusBarFrame).
