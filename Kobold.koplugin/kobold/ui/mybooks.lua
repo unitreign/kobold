@@ -1613,6 +1613,7 @@ function KoboldMyBooks:openBookMenu(file, anchor, align)
         file = file, screen = self, anchor = anchor,
         align = align ~= "side" and align or nil, side = align == "side",
         on_change = function() self:scheduleReload() end,
+        home_show = true,
     }
 end
 

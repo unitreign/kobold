@@ -250,8 +250,16 @@ function KoboldHome:build()
                     on_change = function()
                         if self.onKoboldReturn then self:onKoboldReturn() end
                     end,
+                    on_remove = function()
+                        KoboldHomeData.removeFromHome(file)
+                        self:onKoboldReturn()
+                    end,
                 }
             end)
+        elseif self.unRegisterTouchZones then
+            -- An empty slot (a book was removed or finished): drop the zones
+            -- an earlier build left there, so they do not open the old book.
+            self:unRegisterTouchZones({ { id = "KoboldTop" .. i }, { id = "KoboldTopHold" .. i } })
         end
     end
     if data.latest and data.latest.file then

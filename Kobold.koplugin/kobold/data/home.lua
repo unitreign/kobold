@@ -9,25 +9,108 @@ local KoboldStats     = require("kobold.data.stats")
 
 local KoboldHomeData = {}
 
--- Books from ReadHistory that are started but not finished (most recent first).
--- hours_left is estimated from the book's own reading stats (pages left times
--- average seconds per page), or nil when KOReader has no stats for the book.
-function KoboldHomeData.getCurrentlyReading(n)
+-- Books removed from Home's reading row: { [file] = os.time() of removal }.
+-- A removed book comes back once it is opened again (its history time is
+-- then newer than the removal), or put back with Show in Home.
+local function homeHidden()
+    local t = KoboldPrefs.get("home_hidden")
+    return type(t) == "table" and t or {}
+end
+
+-- Books put on Home with Show in Home (My Books): { [file] = os.time() }.
+-- That time counts as the book's last read time for Home's order.
+local function homeShown()
+    local t = KoboldPrefs.get("home_shown")
+    return type(t) == "table" and t or {}
+end
+
+-- `map` without entries for books that no longer exist, plus file = now.
+local function withFile(map, file, now)
+    local kept = {}
+    for f, when in pairs(map) do
+        if lfs.attributes(f, "mode") == "file" then kept[f] = when end
+    end
+    kept[file] = now
+    return kept
+end
+
+-- Takes `file` off Home's reading row (Home's book menu).
+function KoboldHomeData.removeFromHome(file)
+    KoboldPrefs.set("home_hidden", withFile(homeHidden(), file, os.time()))
+end
+
+-- Puts `file` first on Home's reading row (My Books' book menu).
+function KoboldHomeData.showInHome(file)
+    local now = os.time()
+    local hidden = homeHidden()
+    if hidden[file] then
+        hidden[file] = nil
+        KoboldPrefs.set("home_hidden", hidden)
+    end
+    KoboldPrefs.set("home_shown", withFile(homeShown(), file, now))
+end
+
+-- Up to n books for Home's reading row: started, not finished, not removed,
+-- newest first by last read time (or Show in Home time, when later).
+local function pickReading(n)
     local ok, RH = pcall(require, "readhistory")
     if not ok or not RH or not RH.hist then return {} end
+    local hidden, shown = homeHidden(), homeShown()
 
-    local picked = {}
-    for _, entry in ipairs(RH.hist) do
-        if #picked >= n then break end
+    -- Order first (cheap), then read book info only until n are found.
+    local order, seen = {}, {}
+    for i, entry in ipairs(RH.hist) do
         local file = entry.file
-        if file and lfs.attributes(file, "mode") == "file" then
-            local info = KoboldLibrary.getDocInfoCached(file) or {}
-            local pf = info.percent
-            if pf and pf > 0 and pf < 1 and info.status ~= "complete" then
-                picked[#picked + 1] = { file = file, percent = pf, pages = info.pages, md5 = info.md5 }
+        if file then
+            seen[file] = true
+            local when = math.max(tonumber(entry.time) or 0, shown[file] or 0)
+            if not (hidden[file] and when <= hidden[file]) then
+                order[#order + 1] = { file = file, when = when, i = i }
             end
         end
     end
+    -- Shown books missing from the history (it was cleared) still count.
+    for file, when in pairs(shown) do
+        if not seen[file] and not (hidden[file] and when <= hidden[file]) then
+            order[#order + 1] = { file = file, when = when, i = math.huge }
+        end
+    end
+    table.sort(order, function(a, b)
+        if a.when ~= b.when then return a.when > b.when end
+        return a.i < b.i  -- history order for equal times
+    end)
+
+    local picked = {}
+    for _i, o in ipairs(order) do
+        if #picked >= n then break end
+        if lfs.attributes(o.file, "mode") == "file" then
+            local info = KoboldLibrary.getDocInfoCached(o.file) or {}
+            local pf = info.percent
+            if pf and pf > 0 and pf < 1 and info.status ~= "complete" then
+                picked[#picked + 1] = { file = o.file, percent = pf, pages = info.pages, md5 = info.md5 }
+            end
+        end
+    end
+    return picked
+end
+
+-- True when `file` is being read (started, not finished) but is not on
+-- Home's reading row, so My Books can offer Show in Home.
+function KoboldHomeData.canShowInHome(file)
+    local info = KoboldLibrary.getDocInfoCached(file) or {}
+    local pf = info.percent
+    if not (pf and pf > 0 and pf < 1 and info.status ~= "complete") then return false end
+    for _i, b in ipairs(pickReading(4)) do
+        if b.file == file then return false end
+    end
+    return true
+end
+
+-- Books for Home's reading row (see pickReading). hours_left is estimated
+-- from the book's own reading stats (pages left times average seconds per
+-- page), or nil when KOReader has no stats for the book.
+function KoboldHomeData.getCurrentlyReading(n)
+    local picked = pickReading(n)
 
     local md5s = {}
     for _, b in ipairs(picked) do
