@@ -1,4 +1,4 @@
-local _ = require("gettext")
+local _ = require("gettext")  -- KOReader's: the plugin folder is not on the module path yet (see below)
 
 -- Version from kobold/meta.lua, so it is set in one place. _meta.lua is
 -- loaded on its own, before the plugin folder is on the module path.

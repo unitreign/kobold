@@ -6,6 +6,7 @@ local KoboldLibrary   = require("kobold.data.library")
 local KoboldPerf      = require("kobold.data.perf")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldStats     = require("kobold.data.stats")
+local _               = require("kobold.l10n")
 
 local KoboldHomeData = {}
 
@@ -113,12 +114,12 @@ function KoboldHomeData.getCurrentlyReading(n)
     local picked = pickReading(n)
 
     local md5s = {}
-    for _, b in ipairs(picked) do
+    for _i, b in ipairs(picked) do
         if b.md5 then md5s[#md5s + 1] = b.md5 end
     end
     local rates = KoboldStats.secondsPerPage(md5s)
 
-    for _, b in ipairs(picked) do
+    for _i, b in ipairs(picked) do
         local rate = b.md5 and rates[b.md5]
         if rate and b.pages then
             local pages_left = b.pages * (1 - b.percent)
@@ -132,7 +133,7 @@ end
 function KoboldHomeData.getLatestRead()
     local ok, RH = pcall(require, "readhistory")
     if not ok or not RH or not RH.hist then return nil end
-    for _, entry in ipairs(RH.hist) do
+    for _i, entry in ipairs(RH.hist) do
         if entry.file and lfs.attributes(entry.file, "mode") == "file" then
             local info = KoboldLibrary.getDocInfoCached(entry.file) or {}
             return { file = entry.file, title = KoboldLibrary.getTitle(entry.file, info) }
@@ -181,7 +182,7 @@ local function getRandomCollection()
 
     local name = names[math.random(#names)]
     local files = {}
-    for _, item in pairs(RC.coll[name]) do
+    for _k, item in pairs(RC.coll[name]) do
         if item.file and lfs.attributes(item.file, "mode") == "file" then
             files[#files + 1] = item.file
         end
@@ -225,14 +226,14 @@ function KoboldHomeData.getHomeData()
     for i = 1, math.min(3, #all_files) do my_books[i] = all_files[i] end
 
     local my_set = {}
-    for _, f in ipairs(my_books) do my_set[f] = true end
+    for _i, f in ipairs(my_books) do my_set[f] = true end
 
     -- The random pick is kept for the whole KOReader session, so Home does
     -- not change under the reader's eyes each time a book closes. It is
     -- picked again only when its collection or books are gone.
     if right_pick and stillValid(right_pick, all_files) then
         local data_right = right_pick.right
-        if not data_right.collection then data_right.subtitle = #all_files .. " BOOKS" end
+        if not data_right.collection then data_right.subtitle = _.N("%1 BOOK", "%1 BOOKS", #all_files) end
         return finishHomeData(t, all_files, my_books, data_right)
     end
 
@@ -241,14 +242,14 @@ function KoboldHomeData.getHomeData()
     if coll then
         right = {
             title = coll.name,
-            subtitle = "COLLECTION",
+            subtitle = _("COLLECTION"),
             collection = coll.name,  -- its key in ReadCollection
             files = KoboldLibrary.pickRandom(coll.files, 3),
         }
     else
         right = {
-            title = "More Books",
-            subtitle = #all_files .. " BOOKS",
+            title = _("More Books"),
+            subtitle = _.N("%1 BOOK", "%1 BOOKS", #all_files),
             files = KoboldLibrary.pickRandom(all_files, 3, my_set),
         }
     end

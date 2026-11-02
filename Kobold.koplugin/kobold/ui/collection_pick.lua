@@ -25,7 +25,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldMenu      = require("kobold.ui.menu")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldWidgets   = require("kobold.ui.widgets")
@@ -175,7 +175,7 @@ function KoboldCollectionPick:build()
         local in_it = self.member[name] == true
         local n = (self.counts[name] or 0)
         local count = TextWidget:new{
-            text = n == 1 and _("1 book") or string.format(_("%d books"), n),
+            text = _.N("%1 book", "%1 books", n),
             face = KoboldWidgets.face(14),
         }
         local name_w = inner_w - count:getSize().w - mark - 4 * gap
@@ -200,7 +200,7 @@ function KoboldCollectionPick:build()
     -- Bottom: the page (when there are several) and Save.
     local button_w = Screen:scaleBySize(130)
     local page_label = TextWidget:new{
-        text = self.pages > 1 and string.format(_("Page %d of %d"), self.page, self.pages) or "",
+        text = self.pages > 1 and _.T(_("Page %1 of %2"), self.page, self.pages) or "",
         face = KoboldWidgets.italicFace(15),
     }
     local foot_y = y0 + inner_h - foot_h

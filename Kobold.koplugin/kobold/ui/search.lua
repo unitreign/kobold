@@ -25,7 +25,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldMyBooksData = require("kobold.data.mybooks")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldMenu      = require("kobold.ui.menu")
@@ -84,7 +84,7 @@ end
 local function statusText(b)
     if b.status == "finished" then return _("Finished") end
     if b.percent and b.percent > 0 then
-        return string.format(_("%d%% Read"), math.floor(b.percent * 100 + 0.5))
+        return _.T(_("%1% Read"), math.floor(b.percent * 100 + 0.5))
     end
     return _("Unread")
 end
@@ -286,7 +286,7 @@ function KoboldSearch:buildResults(page, x0, y, w, h, hit)
     local results = self.results or {}
     if #results == 0 then
         page[#page + 1] = CenterContainer:new{ dimen = Geom:new{ w = w, h = list_h },
-            TextBoxWidget:new{ text = string.format(_("No results for \"%s\"."), self.query),
+            TextBoxWidget:new{ text = _.T(_("No results for \"%1\"."), self.query),
                 face = KoboldWidgets.face(16), width = w - 2 * gap, alignment = "center" } }
         return
     end
@@ -369,7 +369,7 @@ function KoboldSearch:buildResults(page, x0, y, w, h, hit)
     page[#page + 1] = VerticalSpan:new{ width = math.max(0, list_h - used) }
 
     -- Footer: "Page x of y" with a chevron each side where there is a page.
-    local label_w = TextWidget:new{ text = string.format(_("Page %d of %d"), self.page, self.pages), face = KoboldWidgets.italicFace(16) }
+    local label_w = TextWidget:new{ text = _.T(_("Page %1 of %2"), self.page, self.pages), face = KoboldWidgets.italicFace(16) }
     local arrow = Screen:scaleBySize(24)
     local function side(name, shown) return shown and KoboldWidgets.icon(name, arrow) or HorizontalSpan:new{ width = arrow } end
     local spacer = math.max(0, math.floor((w - 2 * arrow - label_w:getSize().w) / 2))

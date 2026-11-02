@@ -21,7 +21,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldCovers    = require("kobold.data.covers")
 local KoboldLibrary   = require("kobold.data.library")
 local KoboldPrefs     = require("kobold.data.prefs")
@@ -58,7 +58,7 @@ local function prepareCovers()
     elseif n == 0 then
         text = _("Every book already has its cover.")
     else
-        text = string.format(_("Preparing %d covers in the background."), n)
+        text = _.N("Preparing %1 cover in the background.", "Preparing %1 covers in the background.", n)
     end
     UIManager:show(InfoMessage:new{ text = text })
 end
@@ -265,7 +265,7 @@ function KoboldSettings:build()
     self.panel_rect = R
 
     local page_label = TextWidget:new{
-        text = self.pages > 1 and string.format(_("Page %d of %d"), self.page, self.pages) or "",
+        text = self.pages > 1 and _.T(_("Page %1 of %2"), self.page, self.pages) or "",
         face = KoboldWidgets.face(14), fgcolor = KoboldWidgets.subtitleColor(),
     }
     local panel = FrameContainer:new{

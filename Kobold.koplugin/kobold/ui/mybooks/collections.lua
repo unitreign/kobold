@@ -9,7 +9,7 @@ local ConfirmBox        = require("ui/widget/confirmbox")
 local InfoMessage       = require("ui/widget/infomessage")
 local InputDialog       = require("ui/widget/inputdialog")
 local UIManager         = require("ui/uimanager")
-local _                 = require("gettext")
+local _                 = require("kobold.l10n")
 local KoboldPrefs       = require("kobold.data.prefs")
 local KoboldMyBooksData = require("kobold.data.mybooks")
 

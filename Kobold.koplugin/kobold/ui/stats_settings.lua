@@ -15,7 +15,7 @@ local InputContainer  = require("ui/widget/container/inputcontainer")
 local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldStats     = require("kobold.data.stats")
 local KoboldActions   = require("kobold.ui.actions")
@@ -26,7 +26,7 @@ local KoboldWidgets   = require("kobold.ui.widgets")
 
 local Screen = Device.screen
 
-local DEFAULT_LABEL = "Reading Stats"
+local DEFAULT_LABEL = _("Reading Stats")
 
 local KoboldStatsSettings = InputContainer:extend{
     name = "kobold_stats_settings",

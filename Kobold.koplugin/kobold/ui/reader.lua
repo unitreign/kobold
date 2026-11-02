@@ -3,7 +3,7 @@
 
 local InfoMessage     = require("ui/widget/infomessage")
 local UIManager       = require("ui/uimanager")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldSession   = require("kobold.ui.session")
 
 local KoboldReader = {}
@@ -34,7 +34,7 @@ function KoboldReader.open(screen, file)
         if not ok then
             Transition.close()
             UIManager:show(InfoMessage:new{
-                text = _("Could not open the book: ") .. tostring(err),
+                text = _.T(_("Could not open the book: %1"), tostring(err)),
             })
         end
     end

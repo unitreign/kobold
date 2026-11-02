@@ -24,7 +24,7 @@ local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldWidgets   = require("kobold.ui.widgets")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 
 local Screen = Device.screen
 

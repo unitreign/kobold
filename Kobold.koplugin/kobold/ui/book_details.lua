@@ -25,7 +25,7 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local lfs             = require("libs/libkoreader-lfs")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldLibrary   = require("kobold.data.library")
 local KoboldMyBooksData = require("kobold.data.mybooks")
 local KoboldPopup     = require("kobold.ui.popup")
@@ -92,7 +92,7 @@ end
 local function statusLine(info)
     if info.status == "complete" then return _("Finished") end
     if info.percent and info.percent > 0 then
-        return string.format(_("%d%% read"), math.floor(info.percent * 100 + 0.5))
+        return _.T(_("%1% read"), math.floor(info.percent * 100 + 0.5))
     end
     return _("Unread")
 end

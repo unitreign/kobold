@@ -2,6 +2,7 @@
 -- Reading statistics from KOReader's statistics.sqlite3. Builds no widgets.
 
 local lfs             = require("libs/libkoreader-lfs")
+local _               = require("kobold.l10n")
 
 local KoboldStats = {}
 
@@ -139,46 +140,45 @@ function KoboldStats.streakDays()
     return days
 end
 
-local function hoursText(seconds, suffix)
-    local h = math.floor(seconds / 3600 + 0.5)
-    if seconds > 0 and h == 0 then return "Less than 1 hour " .. suffix end
-    return h .. (h == 1 and " hour " or " hours ") .. suffix
-end
-
-local function plural(n, one, many)
-    return n .. " " .. (n == 1 and one or many)
+-- Whole hours in `seconds`, rounded; 0 for under half an hour.
+local function hours(seconds)
+    return math.floor(seconds / 3600 + 0.5)
 end
 
 -- Lines the Home reading stats can show (Kobold Settings), in menu order.
 -- text() returns the line, or nil when the statistics are unavailable.
 KoboldStats.LINES = {
-    { id = "total_hours", label = "Total hours read", text = function()
+    { id = "total_hours", label = _("Total hours read"), text = function()
         local h = KoboldStats.totalReadHours()
-        return h and (h .. " hours read totally")
+        return h and _.N("%1 hour read in total", "%1 hours read in total", h)
     end },
-    { id = "week_hours", label = "Hours this week", text = function()
+    { id = "week_hours", label = _("Hours this week"), text = function()
         local s = KoboldStats.weekReadSeconds()
-        return s and hoursText(s, "this week")
+        if not s then return nil end
+        if s > 0 and hours(s) == 0 then return _("Less than 1 hour this week") end
+        return _.N("%1 hour this week", "%1 hours this week", hours(s))
     end },
-    { id = "today_time", label = "Time read today", text = function()
+    { id = "today_time", label = _("Time read today"), text = function()
         local s = secondsSince(todayStart())
         if not s then return nil end
-        if s < 3600 then return plural(math.floor(s / 60 + 0.5), "minute", "minutes") .. " today" end
-        return hoursText(s, "today")
+        if s < 3600 then
+            return _.N("%1 minute today", "%1 minutes today", math.floor(s / 60 + 0.5))
+        end
+        return _.N("%1 hour today", "%1 hours today", hours(s))
     end },
-    { id = "today_pages", label = "Pages read today", text = function()
+    { id = "today_pages", label = _("Pages read today"), text = function()
         local n = pagesSince(todayStart())
-        return n and (plural(n, "page", "pages") .. " today")
+        return n and _.N("%1 page today", "%1 pages today", n)
     end },
-    { id = "week_pages", label = "Pages read this week", text = function()
+    { id = "week_pages", label = _("Pages read this week"), text = function()
         local n = pagesSince(weekStart())
-        return n and (plural(n, "page", "pages") .. " this week")
+        return n and _.N("%1 page this week", "%1 pages this week", n)
     end },
-    { id = "streak", label = "Reading streak", text = function()
+    { id = "streak", label = _("Reading streak"), text = function()
         local n = KoboldStats.streakDays()
-        return n and (plural(n, "day", "days") .. " in a row")
+        return n and _.N("%1 day in a row", "%1 days in a row", n)
     end },
-    { id = "none", label = "Nothing", text = function() return nil end },
+    { id = "none", label = _("Nothing"), text = function() return nil end },
 }
 
 -- The line with this id, or nil.
@@ -200,7 +200,7 @@ function KoboldStats.secondsPerPage(md5s)
     if fp and m and m.fp == fp then return m.result end
 
     withDB(function(conn)
-        for _, md5 in ipairs(md5s) do
+        for _i, md5 in ipairs(md5s) do
             if md5:match("^%x+$") then
                 local id = firstValue(conn, string.format(
                     "SELECT id FROM book WHERE md5 = '%s' ORDER BY last_open DESC LIMIT 1;", md5), 1)

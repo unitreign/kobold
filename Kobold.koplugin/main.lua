@@ -6,7 +6,7 @@
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InfoMessage     = require("ui/widget/infomessage")
 local UIManager       = require("ui/uimanager")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 
 local START_WITH_VALUE = "kobold_home"
 local boot_handled = false  -- set once per KOReader session, on the file browser
@@ -175,7 +175,7 @@ end
 function Kobold:onCloseDocument()
     local Session = require("kobold.ui.session")
     if Session.returning() then
-        local _ = require("gettext")
+        local _ = require("kobold.l10n")
         require("kobold.ui.transition").show(_("Closing Book"))
     end
 end

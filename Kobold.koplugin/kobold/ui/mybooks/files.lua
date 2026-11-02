@@ -15,7 +15,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local lfs             = require("libs/libkoreader-lfs")
 local KoboldWidgets   = require("kobold.ui.widgets")
 
@@ -132,7 +132,7 @@ return function(KoboldMyBooks, shared)
                     TextWidget:new{ text = item.name, face = KoboldWidgets.face(17), max_width = text_w },
                     VerticalSpan:new{ width = Screen:scaleBySize(4) },
                     TextWidget:new{
-                        text = count == 1 and _("1 item") or string.format(_("%d items"), count),
+                        text = _.N("%1 item", "%1 items", count),
                         face = KoboldWidgets.face(14),
                         fgcolor = KoboldWidgets.subtitleColor(),
                         max_width = text_w,

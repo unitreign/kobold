@@ -7,7 +7,7 @@ local lfs             = require("libs/libkoreader-lfs")
 local KoboldBookInfo  = require("kobold.data.bookinfo")
 local KoboldLibrary   = require("kobold.data.library")
 local KoboldPerf      = require("kobold.data.perf")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 
 local KoboldMyBooksData = {}
 
@@ -326,9 +326,9 @@ end
 function KoboldMyBooksData.formatSize(bytes)
     if not bytes then return nil end
     if bytes >= 1024 * 1024 then
-        return string.format(_("%.1f MB"), bytes / (1024 * 1024))
+        return _.T(_("%1 MB"), string.format("%.1f", bytes / (1024 * 1024)))
     end
-    return string.format(_("%d KB"), math.max(1, math.floor(bytes / 1024 + 0.5)))
+    return _.T(_("%1 KB"), math.max(1, math.floor(bytes / 1024 + 0.5)))
 end
 
 return KoboldMyBooksData

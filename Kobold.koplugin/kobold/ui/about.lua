@@ -17,7 +17,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local InfoMessage     = require("ui/widget/infomessage")
 local KoboldMeta      = require("kobold.meta")
 local KoboldPopup     = require("kobold.ui.popup")
@@ -96,7 +96,7 @@ function KoboldAbout:build()
         text = _("Kobold"), face = KoboldWidgets.face(26), bold = true,
     })
     page[#page + 1] = centred(content_w, TextWidget:new{
-        text = _("Version ") .. KoboldMeta.VERSION,
+        text = _.T(_("Version %1"), KoboldMeta.VERSION),
         face = KoboldWidgets.face(14),
         fgcolor = KoboldWidgets.subtitleColor(),
     })

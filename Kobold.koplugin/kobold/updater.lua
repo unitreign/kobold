@@ -12,7 +12,7 @@ local InfoMessage = require("ui/widget/infomessage")
 local UIManager   = require("ui/uimanager")
 local lfs         = require("libs/libkoreader-lfs")
 local logger      = require("logger")
-local _           = require("gettext")
+local _           = require("kobold.l10n")
 local KoboldMeta  = require("kobold.meta")
 
 local KoboldUpdater = {}
@@ -113,13 +113,13 @@ local function install(release)
     end
     local work = DataStorage:getSettingsDir() .. "/kobold_update"
     local zip = work .. ".zip"
-    local progress = InfoMessage:new{ text = string.format(_("Downloading Kobold %s…"), release.version), timeout = 120 }
+    local progress = InfoMessage:new{ text = _.T(_("Downloading Kobold %1…"), release.version), timeout = 120 }
     UIManager:show(progress)
     UIManager:scheduleIn(0.3, function()
         local ok, err = download(release.url, zip)
         UIManager:close(progress)
         if not ok then
-            UIManager:show(InfoMessage:new{ text = _("Download failed: ") .. tostring(err), timeout = 5 })
+            UIManager:show(InfoMessage:new{ text = _.T(_("Download failed: %1"), tostring(err)), timeout = 5 })
             return
         end
         sh(string.format("rm -rf %q", work))
@@ -139,7 +139,7 @@ local function install(release)
             return
         end
         UIManager:show(ConfirmBox:new{
-            text = string.format(_("Kobold %s is installed.\n\nRestart KOReader to use it?"), release.version),
+            text = _.T(_("Kobold %1 is installed.\n\nRestart KOReader to use it?"), release.version),
             ok_text = _("Restart now"),
             cancel_text = _("Later"),
             ok_callback = function() UIManager:restartKOReader() end,
@@ -158,24 +158,24 @@ function KoboldUpdater.check()
             local release, err = latestRelease()
             UIManager:close(checking)
             if not release then
-                UIManager:show(InfoMessage:new{ text = _("Could not check for updates: ") .. tostring(err), timeout = 4 })
+                UIManager:show(InfoMessage:new{ text = _.T(_("Could not check for updates: %1"), tostring(err)), timeout = 4 })
                 return
             end
             local current = KoboldMeta.VERSION
             if not newer(release.version, current) then
                 UIManager:show(InfoMessage:new{
-                    text = string.format(_("Kobold is up to date (%s)."), current), timeout = 3,
+                    text = _.T(_("Kobold is up to date (%1)."), current), timeout = 3,
                 })
                 return
             end
             if not release.url then
                 UIManager:show(InfoMessage:new{
-                    text = string.format(_("Kobold %s is out, but its download is not ready yet."), release.version),
+                    text = _.T(_("Kobold %1 is out, but its download is not ready yet."), release.version),
                 })
                 return
             end
             UIManager:show(ConfirmBox:new{
-                text = string.format(_("Kobold %s is available. You have %s."), release.version, current)
+                text = _.T(_("Kobold %1 is available. You have %2."), release.version, current)
                     .. (release.notes and ("\n\n" .. release.notes) or "")
                     .. "\n\n" .. _("Download and install now?"),
                 ok_text = _("Install"),

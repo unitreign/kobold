@@ -15,7 +15,7 @@ local InputContainer  = require("ui/widget/container/inputcontainer")
 local InputText       = require("ui/widget/inputtext")
 local LeftContainer   = require("ui/widget/container/leftcontainer")
 local UIManager       = require("ui/uimanager")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldWidgets   = require("kobold.ui.widgets")
 

@@ -27,6 +27,7 @@ local KoboldReader    = require("kobold.ui.reader")
 local KoboldRouter    = require("kobold.ui.router")
 local KoboldTaps      = require("kobold.ui.taps")
 local KoboldWidgets   = require("kobold.ui.widgets")
+local _               = require("kobold.l10n")
 
 local Screen = Device.screen
 
@@ -300,10 +301,10 @@ end
 local function hoursToGoText(item)
     if not item then return "" end
     local h = item.hours_left
-    if not h then return "No stats yet" end
-    if h < 0.5 then return "less than 1 hour to go" end
+    if not h then return _("No stats yet") end
+    if h < 0.5 then return _("less than 1 hour to go") end
     local n = math.floor(h + 0.5)
-    return n .. (n == 1 and " hour" or " hours") .. " to go"
+    return _.N("%1 hour to go", "%1 hours to go", n)
 end
 
 -- Up to four covers in a row. Under each: the percentage read, then the hours
@@ -361,7 +362,7 @@ function KoboldHome:buildLibrarySection(data, L)
     end
 
     return HorizontalGroup:new{
-        column(data.my_books, "My Books", data.total .. " BOOKS"),
+        column(data.my_books, _("My Books"), _.N("%1 BOOK", "%1 BOOKS", data.total)),
         HorizontalSpan:new{ width = L.col_gap },
         column(data.right.files, data.right.title, data.right.subtitle),
     }
@@ -409,7 +410,7 @@ function KoboldHome:buildInfoSection(data, L)
         }
     end
 
-    local left_title = "No recent book"
+    local left_title = _("No recent book")
     if data.latest then
         left_title = data.latest.title or KoboldWidgets.bookTitle(data.latest.file)
     end
@@ -418,15 +419,15 @@ function KoboldHome:buildInfoSection(data, L)
     -- self.stats_actions holds the tap action of each shown line, top first.
     local stats = data.stats or {}
     local first = stats.line1 or stats.line2
-    local right_title = first and first.text or "No reading stats"
+    local right_title = first and first.text or _("No reading stats")
     self.stats_actions = { first and first.action }
     if stats.line1 and stats.line2 and titleLines(left_title, L.col_w) >= 2 then
         right_title = stats.line1.text .. "\n" .. stats.line2.text
         self.stats_actions = { stats.line1.action, stats.line2.action }
     end
-    local label = KoboldPrefs.get("stats_label") or "Reading Stats"
+    local label = KoboldPrefs.get("stats_label") or _("Reading Stats")
     return HorizontalGroup:new{
-        block(left_title, "Continue Reading"),
+        block(left_title, _("Continue Reading")),
         HorizontalSpan:new{ width = L.col_gap },
         block(right_title, label),
     }

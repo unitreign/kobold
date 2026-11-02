@@ -24,6 +24,7 @@ local KoboldCovers    = require("kobold.data.covers")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldBattery   = require("kobold.ui.battery")
 local KoboldTaps      = require("kobold.ui.taps")
+local _               = require("kobold.l10n")
 
 local Screen = Device.screen
 
@@ -586,7 +587,7 @@ function KoboldWidgets.debugScreenshot()
     if not ok then
         logger.warn("Kobold: screenshot failed:", tostring(err))
         local InfoMessage = require("ui/widget/infomessage")
-        UIManager:show(InfoMessage:new{ text = "Screenshot failed: " .. tostring(err) })
+        UIManager:show(InfoMessage:new{ text = _.T(_("Screenshot failed: %1"), tostring(err)) })
     end
     UIManager:scheduleIn(2, function() UIManager:setDirty("all", "full") end)
 end
@@ -610,7 +611,7 @@ function KoboldWidgets.showFileSearch()
         and pcall(searcher.onShowFileSearch, searcher)
     if not shown then
         local InfoMessage = require("ui/widget/infomessage")
-        UIManager:show(InfoMessage:new{ text = require("gettext")("File search is not available.") })
+        UIManager:show(InfoMessage:new{ text = _("File search is not available.") })
     end
 end
 

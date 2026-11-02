@@ -17,7 +17,7 @@ local TextBoxWidget     = require("ui/widget/textboxwidget")
 local TextWidget        = require("ui/widget/textwidget")
 local VerticalGroup     = require("ui/widget/verticalgroup")
 local VerticalSpan      = require("ui/widget/verticalspan")
-local _                 = require("gettext")
+local _                 = require("kobold.l10n")
 local KoboldMyBooksData = require("kobold.data.mybooks")
 local KoboldWidgets     = require("kobold.ui.widgets")
 
@@ -32,7 +32,7 @@ return function(KoboldMyBooks, shared)
         if item.status == "finished" then return _("Finished") end
         if item.status == "reading" then
             if item.percent then
-                return math.floor(item.percent * 100) .. _("% read")
+                return _.T(_("%1% read"), math.floor(item.percent * 100))
             end
             return _("Reading")
         end
@@ -402,7 +402,7 @@ return function(KoboldMyBooks, shared)
             return HorizontalSpan:new{ width = icon_size }
         end
         local label = TextWidget:new{
-            text = string.format(_("Page %d of %d"), self.page, self.pages),
+            text = _.T(_("Page %1 of %2"), self.page, self.pages),
             face = KoboldWidgets.face(14),
             fgcolor = KoboldWidgets.subtitleColor(),
         }

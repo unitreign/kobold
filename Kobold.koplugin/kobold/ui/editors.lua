@@ -11,7 +11,7 @@ local InputDialog  = require("ui/widget/inputdialog")
 local Menu         = require("ui/widget/menu")
 local SpinWidget   = require("ui/widget/spinwidget")
 local UIManager    = require("ui/uimanager")
-local _            = require("gettext")
+local _            = require("kobold.l10n")
 local KoboldActions = require("kobold.ui.actions")
 
 local Screen = Device.screen

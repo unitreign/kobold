@@ -7,7 +7,7 @@
 -- (menu.lua).
 
 local UIManager       = require("ui/uimanager")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldMenu      = require("kobold.ui.menu")
 local KoboldWidgets   = require("kobold.ui.widgets")
 

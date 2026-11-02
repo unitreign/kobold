@@ -34,7 +34,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldCovers    = require("kobold.data.covers")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldLibrary   = require("kobold.data.library")
@@ -124,8 +124,7 @@ local function readChoice(key, valid, default)
 end
 
 local function countText(n)
-    if n == 1 then return _("1 book") end
-    return n .. _(" books")
+    return _.N("%1 book", "%1 books", n)
 end
 
 -- Index of the rectangle in `hits` that contains point `pos`, or nil.
@@ -604,14 +603,14 @@ function KoboldMyBooks:buildPills()
         end
     elseif self.tab == "books" then
         specs = {
-            { label = _("Filter: ") .. FILTER_LABELS[self.filter], action = function() self:showFilterDialog() end },
-            { label = _("Sort: ") .. SORT_LABELS[self.sort].pill, action = function() self:showSortDialog() end },
+            { label = _.T(_("Filter: %1"), FILTER_LABELS[self.filter]), action = function() self:showFilterDialog() end },
+            { label = _.T(_("Sort: %1"), SORT_LABELS[self.sort].pill), action = function() self:showSortDialog() end },
         }
     elseif self:inCollection() then
         local v = self:collView()
         specs = {
-            { label = _("Filter: ") .. FILTER_LABELS[v.filter], action = function() self:showCollFilterDialog() end },
-            { label = _("Sort: ") .. SORT_LABELS[v.sort].pill, action = function() self:showCollSortDialog() end },
+            { label = _.T(_("Filter: %1"), FILTER_LABELS[v.filter]), action = function() self:showCollFilterDialog() end },
+            { label = _.T(_("Sort: %1"), SORT_LABELS[v.sort].pill), action = function() self:showCollSortDialog() end },
         }
     elseif self.group then
         specs = { {
@@ -620,7 +619,7 @@ function KoboldMyBooks:buildPills()
         } }
     else
         specs = {
-            { label = _("Sort: ") .. GROUP_SORT_LABELS[self.group_sort].pill, action = function() self:showGroupSortDialog() end },
+            { label = _.T(_("Sort: %1"), GROUP_SORT_LABELS[self.group_sort].pill), action = function() self:showGroupSortDialog() end },
         }
     end
 

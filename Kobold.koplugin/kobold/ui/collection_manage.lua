@@ -27,7 +27,7 @@ local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 local KoboldMyBooksData = require("kobold.data.mybooks")
 local KoboldMenu      = require("kobold.ui.menu")
 local KoboldPopup     = require("kobold.ui.popup")
@@ -225,7 +225,7 @@ function KoboldCollectionManage:build()
         face = KoboldWidgets.face(24), max_width = math.floor(inner_w * 0.7),
     }
     local page_label = TextWidget:new{
-        text = self.pages > 1 and string.format(_("Page %d of %d"), self.page, self.pages) or "",
+        text = self.pages > 1 and _.T(_("Page %1 of %2"), self.page, self.pages) or "",
         face = KoboldWidgets.italicFace(15),
     }
     local head = KoboldWidgets.fixed(inner_w, head_h, HorizontalGroup:new{
@@ -241,12 +241,12 @@ function KoboldCollectionManage:build()
     local ctrl_y = y0 + top_h + head_h + line_h + gap
     local controls = HorizontalGroup:new{ align = "center" }
     local cx = x0
-    local f_pill, f_w = pill(_("Filter: ") .. FILTER_LABELS[self.filter], ctrl_h, nil, self.filter ~= "all")
+    local f_pill, f_w = pill(_.T(_("Filter: %1"), FILTER_LABELS[self.filter]), ctrl_h, nil, self.filter ~= "all")
     controls[#controls + 1] = f_pill
     hit(Geom:new{ x = cx, y = ctrl_y, w = f_w, h = ctrl_h }, function() self:chooseFilter(Geom:new{ x = cx, y = ctrl_y, w = f_w, h = ctrl_h }) end)
     cx = cx + f_w + gap
     controls[#controls + 1] = HorizontalSpan:new{ width = gap }
-    local s_pill, s_w = pill(_("Sort: ") .. SORT_LABELS[self.sort], ctrl_h)
+    local s_pill, s_w = pill(_.T(_("Sort: %1"), SORT_LABELS[self.sort]), ctrl_h)
     controls[#controls + 1] = s_pill
     local s_x = cx
     hit(Geom:new{ x = s_x, y = ctrl_y, w = s_w, h = ctrl_h }, function() self:chooseSort(Geom:new{ x = s_x, y = ctrl_y, w = s_w, h = ctrl_h }) end)
@@ -336,7 +336,7 @@ function KoboldCollectionManage:build()
         }
     end
     local counts = TextWidget:new{
-        text = string.format(_("Adding: %d    Removing: %d"), count(self.adds), count(self.removes)),
+        text = _.T(_("Adding: %1    Removing: %2"), count(self.adds), count(self.removes)),
         face = KoboldWidgets.face(15),
     }
     local foot_y = y0 + inner_h - foot_h

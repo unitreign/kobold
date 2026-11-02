@@ -6,7 +6,7 @@
 local Event           = require("ui/event")
 local InfoMessage     = require("ui/widget/infomessage")
 local UIManager       = require("ui/uimanager")
-local _               = require("gettext")
+local _               = require("kobold.l10n")
 
 local KoboldActions = {}
 
@@ -58,13 +58,13 @@ function KoboldActions.run(id)
     local fm = ok_fm and FileManager and FileManager.instance
     if not (isSimple(def) and fm) then
         UIManager:show(InfoMessage:new{
-            text = _("This action is not available: ") .. tostring(id),
+            text = _.T(_("This action is not available: %1"), tostring(id)),
         })
         return false
     end
     local ok, err = pcall(function() fm:handleEvent(Event:new(def.event, def.arg)) end)
     if not ok then
-        UIManager:show(InfoMessage:new{ text = _("The action failed: ") .. tostring(err) })
+        UIManager:show(InfoMessage:new{ text = _.T(_("The action failed: %1"), tostring(err)) })
     end
     return ok
 end
