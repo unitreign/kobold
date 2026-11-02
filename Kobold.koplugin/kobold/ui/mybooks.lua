@@ -667,7 +667,7 @@ function KoboldMyBooks:buildPills()
         }
         local dots_rect = Geom:new{ x = dots_x, y = L.y_pills, w = dots_w, h = L.pills_h }
         self.pill_actions[#self.pill_actions + 1] = function()
-            if self.tab == "collections" then self:showCollectionsMenu(dots_rect) else self:showViewDialog() end
+            if self.tab == "collections" then self:showCollectionsMenu(dots_rect) else self:showViewMenu(dots_rect) end
         end
     end
 
@@ -858,11 +858,16 @@ function KoboldMyBooks:showSortDialog()
 end
 
 -- The Books tab's "...": list or grid view.
-function KoboldMyBooks:showViewDialog()
-    local labels = { list = _("List view"), grid = _("Grid view") }
-    self:showChoiceDialog(_("View"), { "list", "grid" }, self.view,
-        function(id) return labels[id] end,
-        function(id) self:setChoice("view", VIEW_KEY, id) end)
+-- The "..." beside the pills (Books and Series): a dropdown under it with
+-- the one view to switch to, Cover view or List view, as inside a collection.
+function KoboldMyBooks:showViewMenu(anchor)
+    local grid = self.view == "grid"
+    require("kobold.ui.menu").show{
+        anchor = anchor, align = "right",
+        items = { { text = grid and _("List view") or _("Cover view"), callback = function()
+            self:setChoice("view", VIEW_KEY, grid and "list" or "grid")
+        end } },
+    }
 end
 
 function KoboldMyBooks:showGroupSortDialog()
