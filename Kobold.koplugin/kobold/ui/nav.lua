@@ -20,8 +20,9 @@ local Screen = Device.screen
 
 local KoboldNav = {}
 
--- `icon` is one of Kobold's own icons; `fallback` is the KOReader icon used
--- when that file is missing.
+-- `icon` is one of Kobold's own icons (an outline; "<icon>-filled" is shown
+-- when the tab is selected); `fallback` is the KOReader icon used when that
+-- file is missing.
 local TABS = {
     { id = "home",  text = _("Home"),  icon = "home",     fallback = "home",      event = "NavHome" },
     { id = "books", text = _("My Books"), icon = "my-books", fallback = "library",   event = "NavBooks" },
@@ -60,7 +61,9 @@ function KoboldNav.attach(screen, W, H, active)
             CenterContainer:new{
                 dimen = Geom:new{ w = tab_w, h = nav_h - bar_h },
                 VerticalGroup:new{
-                    KoboldWidgets.customIcon(tab.icon, Screen:scaleBySize(24), tab.fallback),
+                    -- The selected tab shows the filled version of its icon.
+                    KoboldWidgets.customIcon(selected and tab.icon .. "-filled" or tab.icon,
+                        Screen:scaleBySize(24), tab.fallback),
                     VerticalSpan:new{ width = Screen:scaleBySize(3) },
                     TextWidget:new{
                         text = tab.text,
