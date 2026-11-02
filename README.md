@@ -75,6 +75,10 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 
 Delete the `Kobold.koplugin` folder from your plugins folder and restart KOReader.
 
+## Release history
+
+Commit messages were cleaned up on 2026-11-02. The code didn't change, but the release tags (v1.0 to v1.4) still point at the commits from before the cleanup, so they won't show up in `main`'s history. The releases and their downloads work as normal.
+
 ## License
 
 Kobold is licensed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE).
