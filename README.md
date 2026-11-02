@@ -37,7 +37,10 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 - **Home** with the books you are reading, your library and a collection at a glance, plus your reading stats
 - **My Books** with Books, Authors, Series and Collections tabs, in list or grid view
 - **Filter and sort** your books by status, date added or title
-- **Collections** you can create, rename and fill with books right from Kobold
+- **Collections** that work like the stock reader: create, rename and manage them, add books with filter, sort and search, and keep a view per collection
+- **Search** your books by title, author or series, with recent searches
+- **Book menu and details page** with Read now, View Details, Add to collection, and the cover, synopsis and file details
+- **Your reading row** on Home, remove books from it or bring older ones back with Show in Home
 - **Quick settings** for brightness, warmth, Wi-Fi and battery from the status bar
 - **Customisable reading stats** on the home screen, with your own text and tap actions
 - **Fast**, with covers and book info cached so screens open quickly
@@ -46,13 +49,11 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 
 ### Next
 
-- **Book details** page with the cover, synopsis and file details. The "..." on a book will show Read now, View Details and KOReader Details
-- **Collections** that work like the stock reader: a new collection screen, adding books with filter, sort and search, book counts on the right, and your own book order inside each collection
+- **Activity** tab with your current book, reading time, sessions and how many books you have finished
 
 ### Later
 
-- **Activity** tab with your current book, reading time, sessions and how many books you have finished
-- **Custom status bar and nav bar**, add, remove and reorder items, with your own icons
+- **Custom status bar and nav bar**, add, remove, hide and reorder items, with your own icons, and add your own buttons that run KOReader actions
 
 ## Requirements
 
