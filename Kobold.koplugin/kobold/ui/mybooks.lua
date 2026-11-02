@@ -225,7 +225,7 @@ function KoboldMyBooks:init()
     L.grid_cell_w = math.floor((L.content_w - (L.grid_cols - 1) * L.grid_gap_x) / L.grid_cols)
     L.grid_cover_h = math.floor(L.grid_cell_w * COVER_RATIO)
     L.grid_text_gap = Screen:scaleBySize(6)
-    L.grid_status_h = TextWidget:new{ text = "Ag", face = KoboldWidgets.face(14) }:getSize().h
+    L.grid_status_h = KoboldWidgets.lineHeight(KoboldWidgets.face(14))
     L.grid_dots_h = TextWidget:new{ text = "…", face = KoboldWidgets.face(18), bold = true }:getSize().h
     L.grid_cell_h = L.grid_cover_h + L.grid_text_gap + L.grid_status_h + L.grid_dots_h
     L.grid_h      = L.list_h - L.footer_h
@@ -251,10 +251,10 @@ function KoboldMyBooks:init()
     local face_title = KoboldWidgets.face(17)
     local two = TextBoxWidget:new{ text = "A\nA", face = face_title, width = L.text_w }
     local one = TextBoxWidget:new{ text = "A", face = face_title, width = L.text_w }
-    local author_h = TextWidget:new{ text = "Ag", face = KoboldWidgets.face(14) }:getSize().h
+    local author_h = KoboldWidgets.lineHeight(KoboldWidgets.face(14))
         + Screen:scaleBySize(4)
     -- Room for the series line too (shown for books in a series).
-    author_h = author_h + TextWidget:new{ text = "AG", face = KoboldWidgets.face(12) }:getSize().h
+    author_h = author_h + KoboldWidgets.lineHeight(KoboldWidgets.face(12))
         + Screen:scaleBySize(2)
     L.title_max_h = two:getSize().h
     if L.title_max_h + author_h > L.row_h - 2 * L.row_pad then
@@ -1639,20 +1639,12 @@ end
 
 -- The file browser refreshes its file list after every change made from the
 -- book menu (status, delete, reset, ...). While this screen is open, that
--- refresh also reloads My Books. Undone in onCloseWidget.
+-- refresh also reloads My Books (see hooks.lua). Undone in onCloseWidget.
 function KoboldMyBooks:hookFileManager()
-    local fc = fileChooser()
-    if not fc or not fc.refreshPath then return end
-    local orig = fc.refreshPath
-    local own = rawget(fc, "refreshPath")
-    fc.refreshPath = function(...)
-        local result = orig(...)
-        self:scheduleReload()
-        return result
-    end
-    self.unhook = function()
-        fc.refreshPath = own  -- nil restores the class method
-    end
+    local KoboldHooks = require("kobold.ui.hooks")
+    local fc = KoboldHooks.fileChooser()
+    if not KoboldHooks.onRefresh(fc, "mybooks", function() self:scheduleReload() end) then return end
+    self.unhook = function() KoboldHooks.onRefresh(fc, "mybooks", nil) end
 end
 
 -- Reloads once on the next tick, however many refreshes come in together.

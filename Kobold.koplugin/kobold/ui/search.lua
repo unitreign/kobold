@@ -293,10 +293,10 @@ function KoboldSearch:buildResults(page, x0, y, w, h, hit)
 
     -- As many rows as fit at their natural height (a two-line title, the
     -- series and the author), stretched to fill the page.
-    local title_line = TextWidget:new{ text = "Ag", face = KoboldWidgets.face(17) }:getSize().h
+    local title_line = KoboldWidgets.lineHeight(KoboldWidgets.face(17))
     local need = 2 * title_line
-        + TextWidget:new{ text = "AG", face = KoboldWidgets.face(12) }:getSize().h
-        + TextWidget:new{ text = "Ag", face = KoboldWidgets.face(14) }:getSize().h
+        + KoboldWidgets.lineHeight(KoboldWidgets.face(12))
+        + KoboldWidgets.lineHeight(KoboldWidgets.face(14))
         + Screen:scaleBySize(16)
     local rows = math.max(1, math.floor((list_h + line_h) / (need + line_h)))
     self.pages = math.max(1, math.ceil(#results / rows))

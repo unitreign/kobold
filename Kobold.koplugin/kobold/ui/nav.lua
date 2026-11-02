@@ -11,6 +11,7 @@ local LineWidget      = require("ui/widget/linewidget")
 local TextWidget      = require("ui/widget/textwidget")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
+local _               = require("gettext")
 local KoboldRouter    = require("kobold.ui.router")
 local KoboldTaps      = require("kobold.ui.taps")
 local KoboldWidgets   = require("kobold.ui.widgets")
@@ -22,9 +23,9 @@ local KoboldNav = {}
 -- `icon` is one of Kobold's own icons; `fallback` is the KOReader icon used
 -- when that file is missing.
 local TABS = {
-    { id = "home",  text = "Home",     icon = "home",     fallback = "home",      event = "NavHome" },
-    { id = "books", text = "My Books", icon = "my-books", fallback = "library",   event = "NavBooks" },
-    { id = "more",  text = "More",     icon = "more",     fallback = "appbar.menu", event = "NavMore" },
+    { id = "home",  text = _("Home"),  icon = "home",     fallback = "home",      event = "NavHome" },
+    { id = "books", text = _("My Books"), icon = "my-books", fallback = "library",   event = "NavBooks" },
+    { id = "more",  text = _("More"),  icon = "more",     fallback = "appbar.menu", event = "NavMore" },
 }
 
 function KoboldNav.height()

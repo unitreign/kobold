@@ -38,14 +38,18 @@ local function hiddenUnderKobold(widget)
     return false  -- not a window (a part of one): leave it alone
 end
 
--- Installs the wrapper once per KOReader session (Restart Kobold reloads
--- this module, so the flag lives on UIManager).
+-- Installs the wrapper once per KOReader session (the flag lives on
+-- UIManager). The wrapper asks UIManager._kobold_repaint_check, which every
+-- install sets to this module's check, so after Restart Kobold reloads the
+-- code (and installs again, see more.lua) the new check is the one used.
 function KoboldRepaintGuard.install()
+    UIManager._kobold_repaint_check = hiddenUnderKobold
     if UIManager._kobold_repaint_guard then return end
     local orig = UIManager.setDirty
     UIManager._kobold_repaint_guard = orig
     UIManager.setDirty = function(um, widget, ...)
-        if hiddenUnderKobold(widget) then return end
+        local hidden = um._kobold_repaint_check
+        if hidden and hidden(widget) then return end
         return orig(um, widget, ...)
     end
 end

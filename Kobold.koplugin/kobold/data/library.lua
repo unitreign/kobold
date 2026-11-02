@@ -195,7 +195,10 @@ function KoboldLibrary.getDocInfo(file)
     local ok_ds, DocSettings = pcall(require, "docsettings")
     if not ok_ds or not DocSettings then return nil end
     local ok_open, ds = pcall(function() return DocSettings:open(file) end)
-    if not ok_open or not ds then return nil end
+    if not ok_open or not ds then
+        if not ok_open then require("logger").warn("Kobold: could not read sidecar of", file, tostring(ds)) end
+        return nil
+    end
     local percent = ds:readSetting("percent_finished")
     local summary = ds:readSetting("summary")
     local props = ds:readSetting("doc_props")
@@ -204,7 +207,7 @@ function KoboldLibrary.getDocInfo(file)
     pcall(function() ds:close() end)
     -- Corrections made in KOReader's Book information are kept apart from
     -- the book, in custom_metadata.lua; they win over the book's own.
-    pcall(function()
+    local ok_custom, err_custom = pcall(function()
         local custom_file = DocSettings:findCustomMetadataFile(file)
         if not custom_file then return end
         local custom = DocSettings.openSettingsFile(custom_file):readSetting("custom_props")
@@ -215,6 +218,9 @@ function KoboldLibrary.getDocInfo(file)
         for k, v in pairs(custom) do merged[k] = v end
         props = merged
     end)
+    if not ok_custom and DocSettings.findCustomMetadataFile then
+        require("logger").warn("Kobold: could not read custom metadata of", file, tostring(err_custom))
+    end
     return {
         percent = percent,
         status = type(summary) == "table" and summary.status or nil,

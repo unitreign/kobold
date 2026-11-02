@@ -155,7 +155,7 @@ function KoboldCollectionPick:build()
     -- Rows: every collection, filling the page.
     local list_y = ctrl_y + ctrl_h + gap
     local list_h = (y0 + inner_h) - foot_h - gap - list_y
-    local min_row = TextWidget:new{ text = "Ag", face = KoboldWidgets.italicFace(18) }:getSize().h + Screen:scaleBySize(28)
+    local min_row = KoboldWidgets.lineHeight(KoboldWidgets.italicFace(18)) + Screen:scaleBySize(28)
     local per_page = math.max(1, math.floor(list_h / (min_row + line_h)))
     local row_h = min_row
     self.pages = math.max(1, math.ceil(#self.names / per_page))

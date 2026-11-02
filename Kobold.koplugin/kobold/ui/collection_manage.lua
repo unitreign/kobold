@@ -189,14 +189,12 @@ function KoboldCollectionManage:build()
     -- Rows: as many as fit between the controls and the bottom bar.
     local list_y = y0 + top_h + head_h + line_h + gap + ctrl_h + gap
     local list_h = (y0 + inner_h) - foot_h - gap - list_y
-    local probe = VerticalGroup:new{
-        TextWidget:new{ text = "Ag", face = KoboldWidgets.italicFace(17) },
-        TextWidget:new{ text = "AG", face = KoboldWidgets.face(12) },
-        TextWidget:new{ text = "Ag", face = KoboldWidgets.face(13) },
-    }
+    local text_h = KoboldWidgets.lineHeight(KoboldWidgets.italicFace(17))
+        + KoboldWidgets.lineHeight(KoboldWidgets.face(12))
+        + KoboldWidgets.lineHeight(KoboldWidgets.face(13))
     -- Thin rows (the three text lines and a little air), at least five a
     -- page, as many as fit; the leftover is shared out so the page is filled.
-    local min_row = probe:getSize().h + Screen:scaleBySize(8)
+    local min_row = text_h + Screen:scaleBySize(8)
     local per_page = math.max(5, math.floor(list_h / (min_row + line_h)))
     local row_h = math.floor(list_h / per_page) - line_h
     self.pages = math.max(1, math.ceil(#self.list / per_page))

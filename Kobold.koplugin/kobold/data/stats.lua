@@ -23,7 +23,10 @@ local function withDB(fn)
         if not ok_fn then error(res) end
         return res
     end)
-    if not ok then return nil end
+    if not ok then
+        require("logger").warn("Kobold: statistics query failed:", tostring(result))
+        return nil
+    end
     return result
 end
 

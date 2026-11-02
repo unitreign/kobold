@@ -326,9 +326,9 @@ end
 function KoboldMyBooksData.formatSize(bytes)
     if not bytes then return nil end
     if bytes >= 1024 * 1024 then
-        return string.format("%.1f MB", bytes / (1024 * 1024))
+        return string.format(_("%.1f MB"), bytes / (1024 * 1024))
     end
-    return string.format("%d KB", math.max(1, math.floor(bytes / 1024 + 0.5)))
+    return string.format(_("%d KB"), math.max(1, math.floor(bytes / 1024 + 0.5)))
 end
 
 return KoboldMyBooksData

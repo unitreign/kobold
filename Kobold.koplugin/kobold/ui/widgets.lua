@@ -52,6 +52,18 @@ function KoboldWidgets.italicFace(size)
     return KoboldWidgets.face(size)
 end
 
+-- Height of one line of text in `face`, measured once per face (screens
+-- use it to size rows before building them).
+local line_heights = setmetatable({}, { __mode = "k" })
+function KoboldWidgets.lineHeight(face)
+    local h = line_heights[face]
+    if not h then
+        h = TextWidget:new{ text = "Ag", face = face }:getSize().h
+        line_heights[face] = h
+    end
+    return h
+end
+
 function KoboldWidgets.bookTitle(file)
     local t = file:match("([^/]+)%.[^%.]+$") or file
     if #t > 40 then t = t:sub(1, 37) .. "..." end
@@ -489,7 +501,45 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
         function()
             if KoboldMeta.debugOn() then KoboldWidgets.debugScreenshot() end
         end)
+    KoboldWidgets.startClock(screen)
     return frame
+end
+
+-- True when `w` is a window in KOReader's window stack.
+local function inStack(w)
+    for _i, entry in ipairs(UIManager._window_stack or {}) do
+        if entry.widget == w then return true end
+    end
+    return false
+end
+
+-- Redraws the status bar of `screen` at the start of every minute, so the
+-- clock (and Wi-Fi and battery with it) stays current. Started once per
+-- screen; it stops itself once the screen has left the window stack. While
+-- the screen is hidden (under a book), the repaint guard drops the refresh.
+function KoboldWidgets.startClock(screen)
+    if screen._kobold_clock then return end
+    local clock = { seen = false, misses = 0 }
+    screen._kobold_clock = clock
+    local function schedule()
+        UIManager:scheduleIn(60 - (os.date("*t").sec or 0) + 1, clock.fn)
+    end
+    clock.fn = function()
+        if inStack(screen) then
+            clock.seen = true
+            KoboldWidgets.refreshStatusBar(screen)
+        else
+            -- Closed, or never shown: stop. A screen not shown yet gets
+            -- one more minute.
+            clock.misses = clock.misses + 1
+            if clock.seen or clock.misses > 1 then
+                screen._kobold_clock = nil
+                return
+            end
+        end
+        schedule()
+    end
+    schedule()
 end
 
 -- Redraws the status bar of `screen` (time, Wi-Fi and battery) and refreshes
@@ -511,15 +561,9 @@ function KoboldWidgets.showBookMenu(file, on_change)
     local fc = FileManager and FileManager.instance and FileManager.instance.file_chooser
     local show = fc and (fc.showFileDialog or fc.onFileHold)
     if not show then return false end
-    if on_change and fc.refreshPath then
-        local own = rawget(fc, "refreshPath")
-        local orig = fc.refreshPath
-        fc.refreshPath = function(...)
-            fc.refreshPath = own  -- once only; nil restores the class method
-            local result = orig(...)
-            UIManager:nextTick(on_change)
-            return result
-        end
+    if on_change then
+        -- Once only: the next refresh after this menu is the one it caused.
+        require("kobold.ui.hooks").onRefresh(fc, "book_menu", on_change, true)
     end
     local item = { path = file, file = file, is_file = true, text = file:match("[^/]+$") }
     return (pcall(show, fc, item))
@@ -719,6 +763,8 @@ function KoboldWidgets.addScreenEvents(ScreenClass)
         UIManager:scheduleIn(2, function() KoboldWidgets.refreshStatusBar(self) end)
     end
     function ScreenClass:onKoboldSettingsChanged() KoboldWidgets.refreshStatusBar(self) end
+    -- Back from sleep: the time, Wi-Fi and battery have all moved on.
+    function ScreenClass:onResume() KoboldWidgets.refreshStatusBar(self) end
     -- Kobold Settings > Icons changed: the whole screen is built again, so
     -- the status bar and nav bar both use the other icon set.
     function ScreenClass:onKoboldIconsChanged()

@@ -145,7 +145,7 @@ function KoboldHome:build()
     local line_h       = Screen:scaleBySize(2)
     -- Bottom titles reserve exactly two lines of the 18 pt face, so a one-line
     -- title and a two-line title leave the subtitle on the same row.
-    local info_title_h = 2 * TextWidget:new{ text = "Ag", face = KoboldWidgets.face(18) }:getSize().h
+    local info_title_h = 2 * KoboldWidgets.lineHeight(KoboldWidgets.face(18))
     local info_sub_h   = Screen:scaleBySize(26)
     local info_pad     = Screen:scaleBySize(12)
     local nav_h        = KoboldNav.height()

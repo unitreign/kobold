@@ -195,7 +195,11 @@ function KoboldMore:restartKobold()
         if name:match("^kobold%.") then package.loaded[name] = nil end
     end
     UIManager:nextTick(function()
-        local ok, err = pcall(function() require("kobold.ui.router").show("home") end)
+        local ok, err = pcall(function()
+            -- The repaint guard stays installed; this points it at the new code.
+            require("kobold.ui.repaint_guard").install()
+            require("kobold.ui.router").show("home")
+        end)
         if not ok then
             UIManager:show(InfoMessage:new{ text = _("Kobold failed to restart.") .. "\n" .. tostring(err) })
         end
