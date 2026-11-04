@@ -26,7 +26,7 @@ msgstr ""
 msgid "Kobold Home failed to open."
 msgstr ""
 
-#: kobold/l10n.lua:5 kobold/ui/book_menu.lua:59
+#: kobold/l10n.lua:5 kobold/ui/book_menu.lua:85
 msgid "Remove from Home"
 msgstr ""
 
@@ -311,7 +311,7 @@ msgstr ""
 msgid "Unread"
 msgstr ""
 
-#: kobold/ui/book_details.lua:153 kobold/ui/book_menu.lua:38
+#: kobold/ui/book_details.lua:153 kobold/ui/book_menu.lua:45
 msgid "Read now"
 msgstr ""
 
@@ -363,19 +363,31 @@ msgstr ""
 msgid "The KOReader book menu is not available."
 msgstr ""
 
-#: kobold/ui/book_menu.lua:41
+#: kobold/ui/book_menu.lua:48
 msgid "View Details"
 msgstr ""
 
-#: kobold/ui/book_menu.lua:44 kobold/ui/collection_pick.lua:135
+#: kobold/ui/book_menu.lua:51 kobold/ui/collection_pick.lua:135
 msgid "Add to collection"
 msgstr ""
 
-#: kobold/ui/book_menu.lua:49
+#: kobold/ui/book_menu.lua:54
 msgid "KOReader Details"
 msgstr ""
 
-#: kobold/ui/book_menu.lua:54
+#: kobold/ui/book_menu.lua:63
+msgid "Mark as finished"
+msgstr ""
+
+#: kobold/ui/book_menu.lua:69
+msgid "Mark as unread"
+msgstr ""
+
+#: kobold/ui/book_menu.lua:75
+msgid "Reset book"
+msgstr ""
+
+#: kobold/ui/book_menu.lua:80
 msgid "Show in Home"
 msgstr ""
 
@@ -458,7 +470,7 @@ msgstr ""
 msgid "Adding: %1    Removing: %2"
 msgstr ""
 
-#: kobold/ui/collection_manage.lua:348 kobold/ui/collection_pick.lua:253 kobold/ui/editors.lua:73 kobold/ui/mybooks/collections.lua:76 kobold/ui/mybooks/collections.lua:114
+#: kobold/ui/collection_manage.lua:348 kobold/ui/collection_pick.lua:253 kobold/ui/editors.lua:73 kobold/ui/reset_book.lua:133 kobold/ui/mybooks/collections.lua:76 kobold/ui/mybooks/collections.lua:114
 msgid "Cancel"
 msgstr ""
 
@@ -706,6 +718,30 @@ msgstr ""
 msgid "Could not open the book: %1"
 msgstr ""
 
+#: kobold/ui/reset_book.lua:38
+msgid "document settings, progress, bookmarks, highlights, notes"
+msgstr ""
+
+#: kobold/ui/reset_book.lua:39
+msgid "custom cover image"
+msgstr ""
+
+#: kobold/ui/reset_book.lua:40
+msgid "custom book metadata"
+msgstr ""
+
+#: kobold/ui/reset_book.lua:89
+msgid "Reset this book?"
+msgstr ""
+
+#: kobold/ui/reset_book.lua:95
+msgid "Information will be permanently lost."
+msgstr ""
+
+#: kobold/ui/reset_book.lua:135 kobold/ui/settings.lua:202 kobold/ui/settings.lua:206 kobold/ui/settings.lua:208 kobold/ui/stats_settings.lua:121 kobold/ui/stats_settings.lua:123
+msgid "Reset"
+msgstr ""
+
 #: kobold/ui/search.lua:42
 msgid "Relevance"
 msgstr ""
@@ -901,10 +937,6 @@ msgstr ""
 
 #: kobold/ui/settings.lua:199
 msgid "Prepare covers for all books now?"
-msgstr ""
-
-#: kobold/ui/settings.lua:202 kobold/ui/settings.lua:206 kobold/ui/settings.lua:208 kobold/ui/stats_settings.lua:121 kobold/ui/stats_settings.lua:123
-msgid "Reset"
 msgstr ""
 
 #: kobold/ui/settings.lua:204

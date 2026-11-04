@@ -1,10 +1,10 @@
 -- kobold/ui/book_menu.lua — Kobold
 -- The small menu for one book: Read now, View Details (Kobold's details
--- page), Add to collection, and KOReader Details (the file browser's own
--- book menu), plus Remove from Home on Home's reading row and Show in Home
--- in My Books. Opened from a book's "..." in My Books and Search, and by
--- holding one of Home's recent books. Drawn by the shared dropdown menu
--- (menu.lua).
+-- page), Add to collection, Mark as finished / unread, Reset book, and
+-- KOReader Details (the file browser's own book menu), plus Remove from
+-- Home on Home's reading row and Show in Home in My Books. Opened from a
+-- book's "..." in My Books and Search, and by holding one of Home's recent
+-- books. Drawn by the shared dropdown menu (menu.lua).
 
 local UIManager       = require("ui/uimanager")
 local _               = require("kobold.l10n")
@@ -34,6 +34,13 @@ function KoboldBookMenu.show(opts)
         return showKOReaderMenu(opts.file, opts.on_change)
     end
     local file, screen, on_change = opts.file, opts.screen, opts.on_change
+    local function title()
+        local info = require("kobold.data.bookinfo").get(file) or {}
+        return info.title or (file:match("([^/]+)%.[^%.]+$") or file)
+    end
+    local function changed()
+        if on_change then on_change() end
+    end
     local items = {
         { text = _("Read now"), callback = function()
             require("kobold.ui.reader").open(screen, file)
@@ -42,14 +49,33 @@ function KoboldBookMenu.show(opts)
             require("kobold.ui.book_details").show(file, screen, on_change)
         end },
         { text = _("Add to collection"), callback = function()
-            local info = require("kobold.data.bookinfo").get(file) or {}
-            local title = info.title or (file:match("([^/]+)%.[^%.]+$") or file)
-            require("kobold.ui.collection_pick").show(file, title, on_change)
+            require("kobold.ui.collection_pick").show(file, title(), on_change)
         end },
         { text = _("KOReader Details"), callback = function()
             showKOReaderMenu(file, on_change)
         end },
     }
+    -- Reading state: the marks that change something, then Reset for a book
+    -- that has been opened. Placed before KOReader Details.
+    local BookStatus = require("kobold.data.book_status")
+    local status = BookStatus.get(file)
+    if status ~= "finished" then
+        table.insert(items, #items, { text = _("Mark as finished"), callback = function()
+            BookStatus.markFinished(file)
+            changed()
+        end })
+    end
+    if status ~= "unread" then
+        table.insert(items, #items, { text = _("Mark as unread"), callback = function()
+            BookStatus.markUnread(file)
+            changed()
+        end })
+    end
+    if BookStatus.hasSidecar(file) then
+        table.insert(items, #items, { text = _("Reset book"), callback = function()
+            require("kobold.ui.reset_book").show(file, title(), changed)
+        end })
+    end
     if opts.home_show and require("kobold.data.home").canShowInHome(file) then
         table.insert(items, #items, { text = _("Show in Home"), callback = function()
             require("kobold.data.home").showInHome(file)
