@@ -59,12 +59,19 @@ function KoboldPrefs.get(name)
     return v
 end
 
+-- Writes KOReader's settings file now. KOReader otherwise writes it only
+-- now and then (and on a clean exit), so a crash could lose a change.
+local function flush()
+    pcall(function() G_reader_settings:flush() end)
+end
+
 -- Saves one setting. nil goes back to the default.
 function KoboldPrefs.set(name, value)
     if not G_reader_settings then return end
     local t = all()
     t[name] = value
     G_reader_settings:saveSetting(KEY, t)
+    flush()
     revision = revision + 1
 end
 
@@ -74,12 +81,16 @@ function KoboldPrefs.reset(names)
     local t = all()
     for _i, name in ipairs(names) do t[name] = nil end
     G_reader_settings:saveSetting(KEY, t)
+    flush()
     revision = revision + 1
 end
 
 -- Puts every Kobold setting back to its default.
 function KoboldPrefs.resetAll()
-    if G_reader_settings then G_reader_settings:delSetting(KEY) end
+    if G_reader_settings then
+        G_reader_settings:delSetting(KEY)
+        flush()
+    end
     revision = revision + 1
 end
 

@@ -213,7 +213,8 @@ end
 -- Anything else, or a missing file, shows a plain placeholder icon.
 local PLACEHOLDER_ICON = "appbar.menu"
 function KoboldWidgets.iconFromSpec(spec, size)
-    local kind, rest = type(spec) == "string" and spec:match("^(%a+):(.+)$")
+    local kind, rest
+    if type(spec) == "string" then kind, rest = spec:match("^(%a+):(.+)$") end
     local file
     if kind == "kobold" then
         file = KoboldMeta.icon(rest .. ".svg")
