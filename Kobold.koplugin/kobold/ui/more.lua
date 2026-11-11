@@ -9,7 +9,7 @@ local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local InputContainer  = require("ui/widget/container/inputcontainer")
 local LeftContainer   = require("ui/widget/container/leftcontainer")
 local LineWidget      = require("ui/widget/linewidget")
@@ -91,7 +91,7 @@ function KoboldMore:init()
                 dimen = Geom:new{ w = content_w, h = line_h },
                 background = Blitbuffer.COLOR_LIGHT_GRAY,
             }
-            KoboldTaps.add(self, "MoreRow" .. n, 0, top, W, row_h, row.action)
+            KoboldTaps.pressable(self, "MoreRow" .. n, 0, top, W, row_h, row.action)
             top = top + row_h + line_h
         end
     end

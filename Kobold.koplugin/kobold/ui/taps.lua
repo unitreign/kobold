@@ -48,6 +48,33 @@ function KoboldTaps.hold(screen, id, x, y, w, h, handler)
     })
 end
 
+-- Like add(), for the finger coming up after a hold ("hold_release").
+function KoboldTaps.release(screen, id, x, y, w, h, handler)
+    local sw, sh = Screen:getWidth(), Screen:getHeight()
+    screen:registerTouchZones({
+        {
+            id = id,
+            ges = "hold_release",
+            screen_zone = { ratio_x = x / sw, ratio_y = y / sh, ratio_w = w / sw, ratio_h = h / sh },
+            handler = function(ges)
+                handler(ges)
+                return true
+            end,
+        },
+    })
+end
+
+-- A pressable item (a tab or a list row) at (x, y, w, h): it inverts while
+-- pressed and `action` runs when the finger comes up (press.lua).
+function KoboldTaps.pressable(screen, id, x, y, w, h, action)
+    local Geom = require("ui/geometry")
+    local Press = require("kobold.ui.press")
+    local rect = Geom:new{ x = x, y = y, w = w, h = h }
+    KoboldTaps.add(screen, id, x, y, w, h, function() Press.tap(screen, rect, action) end)
+    KoboldTaps.hold(screen, id .. "Hold", x, y, w, h, function() Press.hold(screen, rect) end)
+    KoboldTaps.release(screen, id .. "Release", x, y, w, h, function() Press.release(screen, rect, action) end)
+end
+
 -- Swipe down from the top edge opens KOReader's file manager menu, the same
 -- pull-down menu the file browser has. Kobold screens sit above the file
 -- manager, so its own swipe zone never sees the gesture; this forwards it.

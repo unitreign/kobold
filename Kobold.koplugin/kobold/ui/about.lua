@@ -18,7 +18,7 @@ local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local _               = require("kobold.l10n")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local KoboldMeta      = require("kobold.meta")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldPrefs     = require("kobold.data.prefs")
@@ -151,8 +151,7 @@ function KoboldAbout:init()
         elseif ges.pos:intersectWith(self.logo_rect) then
             self:onLogoTap()
         else
-            local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
-            if on_tap then on_tap() end
+            KoboldSettingsList.pressTap(self, self.hits, ges.pos)
         end
     end)
 end

@@ -70,7 +70,8 @@ function KoboldNav.attach(screen, W, H, active)
             icon = KoboldWidgets.iconFromSpec(c and c.icon, icon_size)
             text = c and c.name or ""
         end
-        KoboldTaps.add(screen, "KoboldNav" .. i, (i - 1) * tab_w, nav_top, tab_w, nav_h, function()
+        -- The tab inverts while pressed, then opens (or runs) on release.
+        KoboldTaps.pressable(screen, "KoboldNav" .. i, (i - 1) * tab_w, nav_top, tab_w, nav_h, function()
             if tab then KoboldRouter.show(id, screen) else KoboldBars.runCustom(id) end
         end)
         row[#row + 1] = VerticalGroup:new{

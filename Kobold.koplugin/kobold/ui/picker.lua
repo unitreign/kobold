@@ -63,6 +63,8 @@ end
 -- Choosing --------------------------------------------------------------
 
 local Picker = InputContainer:extend{
+    -- Modal, so it opens above the status bar popups (which are modal too).
+    modal = true,
     name = "kobold_picker",
     title = nil,
     choices = nil,   -- { { id, label, icon = spec (grid only) }, ... }
@@ -229,9 +231,13 @@ function Picker:onTap(pos)
     if not inside(pos, self.frame_dimen) then return self:onClose() end
     if inside(pos, self.prev_rect) then return self:goTo(self.page - 1) end
     if inside(pos, self.next_rect) then return self:goTo(self.page + 1) end
-    for _i, h in ipairs(self.hits) do
-        if inside(pos, h.rect) then return h.on_tap() end
+    if self.grid then
+        for _i, h in ipairs(self.hits) do
+            if inside(pos, h.rect) then return h.on_tap() end
+        end
+        return
     end
+    KoboldSettingsList.pressTap(self, self.hits, pos)
 end
 
 function Picker:pick(id)
@@ -265,6 +271,7 @@ end
 -- Confirming --------------------------------------------------------------
 
 local Confirm = InputContainer:extend{
+    modal = true,
     name = "kobold_confirm",
     text = nil,
     ok_text = nil,
