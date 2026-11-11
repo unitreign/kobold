@@ -105,7 +105,7 @@ function KoboldHome:init()
     -- refreshCovers runs when they are ready.
     local files = {}
     for _i, item in ipairs(self.data.reading) do files[#files + 1] = item.file end
-    for _i, f in ipairs(self.data.my_books) do files[#files + 1] = f end
+    for _i, f in ipairs(self.data.left.files) do files[#files + 1] = f end
     for _i, f in ipairs(self.data.right.files) do files[#files + 1] = f end
     KoboldCovers.ensure(files)
 end
@@ -116,6 +116,24 @@ end
 function KoboldHome:onKoboldReturn()
     self.data = KoboldHomeData.getHomeData()
     self:refreshCovers()
+end
+
+-- Every minute (the status bar clock, see widgets.lua): stats lines and a
+-- Continue reading text with live tokens ([time], [battery], ...) are read
+-- again and redrawn.
+function KoboldHome:onKoboldMinute()
+    local data = self.data
+    local stats = data and data.stats
+    local stats_live = stats and ((stats.line1 and stats.line1.live) or (stats.line2 and stats.line2.live))
+    local continue_live = data and data.continue and data.continue.live
+    if not stats_live and not continue_live then return end
+    if stats_live then
+        stats.line1 = KoboldHomeData.statsLine("stats_line1")
+        stats.line2 = KoboldHomeData.statsLine("stats_line2")
+    end
+    if continue_live then data.continue = KoboldHomeData.continueLine(data.latest) end
+    self:build()
+    UIManager:setDirty(self, function() return "ui", self.info_rect end)
 end
 
 function KoboldHome:refreshCovers()
@@ -221,18 +239,25 @@ function KoboldHome:build()
     local y_lib  = y_read + top_h + tight_gap + caption_h + caption_sub_h + section_gap
     local lib_h  = bot_h + title_gap + title_h + subtitle_h
     local y_info = y_lib + lib_h + line_gap + line_h
-    -- Stacks: My Books opens the Books tab; a collection opens that
-    -- collection in the Collections tab; More Books opens the Books tab.
-    KoboldTaps.add(self, "KoboldStackMyBooks", margin, y_lib, col_w, lib_h, function()
-        KoboldRouter.show("books", self)
-    end)
-    local collection = data.right and data.right.collection
-    KoboldTaps.add(self, "KoboldStackRight", margin + col_w + col_gap, y_lib, col_w, lib_h, function()
-        if collection then
-            KoboldRouter.show("books", self, { tab = "collections", group_key = collection })
+    -- The info band, redrawn alone when its text has live values.
+    self.info_rect = Geom:new{ x = 0, y = y_info, w = W, h = info_title_h + info_sub_h }
+    -- Stacks: a series or collection opens it in My Books (its tab, the
+    -- group open); My Books and More Books open the Books tab.
+    local function openStack(stack)
+        if stack and stack.group_key then
+            KoboldRouter.show("books", self, { tab = stack.tab, group_key = stack.group_key })
+        elseif stack and stack.collection then
+            KoboldRouter.show("books", self, { tab = "collections", group_key = stack.collection })
         else
             KoboldRouter.show("books", self)
         end
+    end
+    local left, right = data.left, data.right
+    KoboldTaps.add(self, "KoboldStackMyBooks", margin, y_lib, col_w, lib_h, function()
+        openStack(left)
+    end)
+    KoboldTaps.add(self, "KoboldStackRight", margin + col_w + col_gap, y_lib, col_w, lib_h, function()
+        openStack(right)
     end)
     for i = 1, 4 do
         local item = data.reading[i]
@@ -265,9 +290,13 @@ function KoboldHome:build()
     end
     if data.latest and data.latest.file then
         local file = data.latest.file
+        -- Opens the book, or runs the action chosen in Kobold Settings.
         KoboldTaps.add(self, "KoboldContinue", margin, y_info, col_w,
             info_title_h + info_sub_h,
-            function() KoboldReader.tapOpen(self, file) end)
+            function()
+                local action = KoboldPrefs.get("continue_action")
+                if action then KoboldActions.run(action) else KoboldReader.tapOpen(self, file) end
+            end)
     end
     -- Reading stats: each line runs its own action from Kobold Settings. With
     -- two lines the lower half of the title runs the second line's action;
@@ -338,7 +367,8 @@ function KoboldHome:buildReadingSection(reading, L)
 end
 
 -- Two columns: a stack of three covers over a left-aligned title and subtitle.
--- Left: My Books. Right: a random collection, or More Books.
+-- Left: My Books, or a series or collection chosen in Kobold Settings.
+-- Right: a random collection, More Books, or a chosen series or collection.
 function KoboldHome:buildLibrarySection(data, L)
     local function column(files, title, subtitle)
         return VerticalGroup:new{
@@ -362,7 +392,7 @@ function KoboldHome:buildLibrarySection(data, L)
     end
 
     return HorizontalGroup:new{
-        column(data.my_books, _("My Books"), _.N("%1 BOOK", "%1 BOOKS", data.total)),
+        column(data.left.files, data.left.title, data.left.subtitle),
         HorizontalSpan:new{ width = L.col_gap },
         column(data.right.files, data.right.title, data.right.subtitle),
     }
@@ -410,9 +440,10 @@ function KoboldHome:buildInfoSection(data, L)
         }
     end
 
-    local left_title = _("No recent book")
-    if data.latest then
-        left_title = data.latest.title or KoboldWidgets.bookTitle(data.latest.file)
+    -- Left title: the last book, or the custom text from Kobold Settings.
+    local left_title = data.continue and data.continue.text
+    if not left_title then
+        left_title = data.latest and KoboldWidgets.bookTitle(data.latest.file) or _("No recent book")
     end
     -- Right title: the first stats line from Kobold Settings. When the left
     -- title wraps to two lines, the second stats line fills the same space.
@@ -427,7 +458,7 @@ function KoboldHome:buildInfoSection(data, L)
     end
     local label = KoboldPrefs.get("stats_label") or _("Reading Stats")
     return HorizontalGroup:new{
-        block(left_title, _("Continue Reading")),
+        block(left_title, KoboldPrefs.get("continue_label") or _("Continue Reading")),
         HorizontalSpan:new{ width = L.col_gap },
         block(right_title, label),
     }

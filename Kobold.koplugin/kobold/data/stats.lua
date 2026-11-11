@@ -140,6 +140,12 @@ function KoboldStats.streakDays()
     return days
 end
 
+-- Seconds read today, and pages read today and this week (text tokens,
+-- see tokens.lua). nil when the statistics are unavailable.
+function KoboldStats.todaySeconds() return secondsSince(todayStart()) end
+function KoboldStats.todayPages() return pagesSince(todayStart()) end
+function KoboldStats.weekPages() return pagesSince(weekStart()) end
+
 -- Whole hours in `seconds`, rounded; 0 for under half an hour.
 local function hours(seconds)
     return math.floor(seconds / 3600 + 0.5)

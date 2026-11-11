@@ -93,17 +93,16 @@ function KoboldEditors.text(title, description, current, on_save, done)
     dialog:onShowKeyboard()
 end
 
--- Full-screen list of every KOReader action, other plugins' included.
-function KoboldEditors.action(title, current, on_pick, done)
+-- Full-screen list to pick one from, for lists too long for choose():
+-- `choices` = { { id, label } }, the current one ticked. `empty` is shown
+-- instead when there is nothing to pick.
+function KoboldEditors.list(title, choices, current, on_pick, done, empty)
     local items = {}
-    for _i, action in ipairs(KoboldActions.list()) do
-        items[#items + 1] = {
-            text = (action.id == current and "✓  " or "") .. action.title,
-            action_id = action.id,
-        }
+    for _i, c in ipairs(choices) do
+        items[#items + 1] = { text = (c.id == current and "✓  " or "") .. c.label, choice_id = c.id }
     end
     if #items == 0 then
-        UIManager:show(InfoMessage:new{ text = _("No KOReader actions were found.") })
+        UIManager:show(InfoMessage:new{ text = empty or _("Nothing to choose from.") })
         call(done)
         return
     end
@@ -115,7 +114,7 @@ function KoboldEditors.action(title, current, on_pick, done)
         is_borderless = true,
         is_popout = false,
         onMenuChoice = function(_menu, item)
-            on_pick(item.action_id)
+            on_pick(item.choice_id)
             UIManager:close(menu)
             call(done)
         end,
@@ -126,6 +125,15 @@ function KoboldEditors.action(title, current, on_pick, done)
         end,
     }
     UIManager:show(menu)
+end
+
+-- Full-screen list of every KOReader action, other plugins' included.
+function KoboldEditors.action(title, current, on_pick, done)
+    local choices = {}
+    for _i, action in ipairs(KoboldActions.list()) do
+        choices[#choices + 1] = { id = action.id, label = action.title }
+    end
+    KoboldEditors.list(title, choices, current, on_pick, done, _("No KOReader actions were found."))
 end
 
 function KoboldEditors.confirm(text, ok_text, on_ok, done)

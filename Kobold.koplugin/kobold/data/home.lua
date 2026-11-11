@@ -192,26 +192,78 @@ local function getRandomCollection()
 end
 
 -- Reading stats line `pref` ("stats_line1" or "stats_line2") as set in
--- Kobold Settings: { text, action }, or nil when it shows nothing (stat set
+-- Kobold Settings: { text, action, live }, or nil when it shows nothing (stat set
 -- to Nothing or unavailable, or empty custom text).
 function KoboldHomeData.statsLine(pref)
     local text
+    local live = false
     if KoboldPrefs.get(pref .. "_kind") == "text" then
         text = KoboldPrefs.get(pref .. "_text")
-        if type(text) ~= "string" or text:match("^%s*$") then text = nil end
+        if type(text) ~= "string" or text:match("^%s*$") then
+            text = nil
+        else
+            -- [time], [streak], ...: live values (tokens.lua).
+            text, live = require("kobold.data.tokens").expand(text)
+        end
     else
         local line = KoboldStats.line(KoboldPrefs.get(pref))
         text = line and line.text() or nil
     end
     if not text then return nil end
-    return { text = text, action = KoboldPrefs.get(pref .. "_action") }
+    return { text = text, action = KoboldPrefs.get(pref .. "_action"), live = live }
+end
+
+-- The Continue reading title: the last book's title, or the custom text set
+-- in Kobold Settings (with live tokens). { text, live }; text is nil when
+-- there is no book and no custom text.
+function KoboldHomeData.continueLine(latest)
+    if KoboldPrefs.get("continue_kind") == "text" then
+        local text = KoboldPrefs.get("continue_text")
+        if type(text) == "string" and not text:match("^%s*$") then
+            local out, live = require("kobold.data.tokens").expand(text)
+            return { text = out, live = live }
+        end
+    end
+    return { text = latest and latest.title or nil, live = false }
+end
+
+-- A series or collection chosen for a Home widget (Kobold Settings > Home
+-- widgets): `src` = { kind = "series" | "collections", key, name }. Returns
+-- { title, subtitle, files (up to 3), tab, group_key } for the widget, or
+-- nil when nothing was chosen or it is gone (the widget then shows its
+-- default).
+local function chosenGroup(src)
+    if type(src) ~= "table" or (src.kind ~= "series" and src.kind ~= "collections") then return nil end
+    local MyBooksData = require("kobold.data.mybooks")
+    for _i, g in ipairs(MyBooksData.getGroups(MyBooksData.getBooks(), src.kind)) do
+        if g.key == src.key and #g.books > 0 then
+            local books = {}
+            for i, b in ipairs(g.books) do books[i] = b end
+            if src.kind == "series" then
+                table.sort(books, function(a, b)
+                    return (a.series_index or math.huge) < (b.series_index or math.huge)
+                end)
+            end
+            local files = {}
+            for i = 1, math.min(3, #books) do files[i] = books[i].file end
+            return {
+                title = g.name,
+                subtitle = src.kind == "series" and _("SERIES") or _("COLLECTION"),
+                files = files, tab = src.kind, group_key = g.key,
+            }
+        end
+    end
+    return nil
 end
 
 -- Everything the home screen needs in one call:
 --   reading  = { { file, percent }, ... }   (up to 4)
---   my_books = { file, ... }                (3 most recently modified)
+--   left     = { title, subtitle, files, tab, group_key } the left stack:
+--              My Books (3 most recently modified), or a chosen series or
+--              collection (then with the My Books tab and group to open)
 --   right    = { title, subtitle, files, collection } (a random collection, with
---              its ReadCollection name; or More Books, with no collection)
+--              its ReadCollection name; or More Books, with no collection),
+--              or a chosen series or collection (with tab and group_key)
 --   total    = number of books found
 --   stats    = { line1, line2 } for the reading stats block, each
 --              { text, action } or nil (see statsLine)
@@ -228,13 +280,21 @@ function KoboldHomeData.getHomeData()
     local my_set = {}
     for _i, f in ipairs(my_books) do my_set[f] = true end
 
+    local left = chosenGroup(KoboldPrefs.get("home_left")) or {
+        title = _("My Books"),
+        subtitle = _.N("%1 BOOK", "%1 BOOKS", #all_files),
+        files = my_books,
+    }
+    local chosen_right = chosenGroup(KoboldPrefs.get("home_right"))
+    if chosen_right then return finishHomeData(t, all_files, left, chosen_right) end
+
     -- The random pick is kept for the whole KOReader session, so Home does
     -- not change under the reader's eyes each time a book closes. It is
     -- picked again only when its collection or books are gone.
     if right_pick and stillValid(right_pick, all_files) then
         local data_right = right_pick.right
         if not data_right.collection then data_right.subtitle = _.N("%1 BOOK", "%1 BOOKS", #all_files) end
-        return finishHomeData(t, all_files, my_books, data_right)
+        return finishHomeData(t, all_files, left, data_right)
     end
 
     local right
@@ -255,11 +315,11 @@ function KoboldHomeData.getHomeData()
     end
 
     right_pick = { right = right }
-    return finishHomeData(t, all_files, my_books, right)
+    return finishHomeData(t, all_files, left, right)
 end
 
--- The rest of the Home data around the right column `right`.
-finishHomeData = function(t, all_files, my_books, right)
+-- The rest of the Home data around the two stacks.
+finishHomeData = function(t, all_files, left, right)
     local data = {
         reading = KoboldHomeData.getCurrentlyReading(4),
         latest = KoboldHomeData.getLatestRead(),
@@ -267,10 +327,11 @@ finishHomeData = function(t, all_files, my_books, right)
             line1 = KoboldHomeData.statsLine("stats_line1"),
             line2 = KoboldHomeData.statsLine("stats_line2"),
         },
-        my_books = my_books,
+        left = left,
         right = right,
         total = #all_files,
     }
+    data.continue = KoboldHomeData.continueLine(data.latest)
     KoboldPerf.log("home data", t, "books=%d", #all_files)
     return data
 end

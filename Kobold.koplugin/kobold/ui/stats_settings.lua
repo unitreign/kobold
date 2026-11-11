@@ -1,7 +1,11 @@
 -- kobold/ui/stats_settings.lua — Kobold
--- Popup for the Home reading stats, opened from Kobold Settings. Each of the
--- two lines is a preset stat or custom text, with its own tap action; the
--- label under them can be changed too, and everything reset at once.
+-- Popup for a Home info block, opened from Kobold Settings > Home widgets.
+--   Reading stats: each of the two lines is a preset stat or custom text,
+--     with its own tap action.
+--   Continue reading: the title is the last book's or custom text, with a
+--     tap action that opens the book or runs a KOReader action.
+-- Custom text can hold live tokens ([time], [streak], ...; tokens.lua). The
+-- label under the block can be changed too, and everything reset at once.
 --
 -- Not modal: its editors (choice lists, keyboard, the action list) must open
 -- on top of it, and KOReader puts non-modal widgets under modal ones.
@@ -27,9 +31,11 @@ local KoboldWidgets   = require("kobold.ui.widgets")
 local Screen = Device.screen
 
 local DEFAULT_LABEL = _("Reading Stats")
+local CONTINUE_LABEL = _("Continue Reading")
 
 local KoboldStatsSettings = InputContainer:extend{
     name = "kobold_stats_settings",
+    block = "stats", -- "stats" or "continue"
     under = nil,    -- the settings screen below, redrawn when this changes
     on_close = nil, -- called once this popup closes
 }
@@ -63,7 +69,7 @@ function KoboldStatsSettings:lineRows(pref, section)
             title = _("Text"),
             value = text ~= "" and text or _("(empty)"),
             on_tap = function()
-                KoboldEditors.text(_("Line text"), nil, text,
+                KoboldEditors.text(_("Line text"), require("kobold.data.tokens").help(), text,
                     function(t) KoboldPrefs.set(pref .. "_text", t) end,
                     function() self:refresh() end)
             end,
@@ -95,7 +101,82 @@ function KoboldStatsSettings:lineRows(pref, section)
     return rows
 end
 
+-- Rows for the Continue reading block.
+function KoboldStatsSettings:continueSpec()
+    local refresh = function() self:refresh() end
+    local is_text = KoboldPrefs.get("continue_kind") == "text"
+    local text = KoboldPrefs.get("continue_text") or ""
+    local action = KoboldPrefs.get("continue_action")
+    local rows = {
+        { section = _("Title") },
+        {
+            title = _("Shows"),
+            value = is_text and _("Custom text") or _("The book title"),
+            on_tap = function()
+                KoboldEditors.choose(_("Shows"), {
+                    { id = "book", label = _("The book title") },
+                    { id = "text", label = _("Custom text") },
+                }, is_text and "text" or "book",
+                function(id) KoboldPrefs.set("continue_kind", id == "text" and "text" or nil) end,
+                refresh)
+            end,
+        },
+    }
+    if is_text then
+        rows[#rows + 1] = {
+            title = _("Text"),
+            value = text ~= "" and text or _("(empty)"),
+            on_tap = function()
+                KoboldEditors.text(_("Title text"), require("kobold.data.tokens").help(), text,
+                    function(t) KoboldPrefs.set("continue_text", t) end, refresh)
+            end,
+        }
+    end
+    rows[#rows + 1] = {
+        title = _("Tap action"),
+        value = action and KoboldActions.title(action) or _("Open the book"),
+        on_tap = function()
+            KoboldEditors.choose(_("Tap action"), {
+                { id = "book", label = _("Open the book") },
+                { id = "action", label = _("A KOReader action…") },
+            }, not action and "book" or nil, function(id)
+                if id == "book" then
+                    KoboldPrefs.set("continue_action", nil)
+                    refresh()
+                else
+                    KoboldEditors.action(_("Tap action"), action,
+                        function(a) KoboldPrefs.set("continue_action", a) end, refresh)
+                end
+            end)
+        end,
+    }
+    rows[#rows + 1] = { section = _("Label") }
+    rows[#rows + 1] = {
+        title = _("Text under the title"),
+        value = KoboldPrefs.get("continue_label") or CONTINUE_LABEL,
+        on_tap = function()
+            KoboldEditors.text(_("Label"), _("Leave empty for the default."),
+                KoboldPrefs.get("continue_label") or CONTINUE_LABEL,
+                function(t)
+                    KoboldPrefs.set("continue_label", t ~= "" and t ~= CONTINUE_LABEL and t or nil)
+                end, refresh)
+        end,
+    }
+    rows[#rows + 1] = { section = "" }
+    rows[#rows + 1] = {
+        title = _("Reset continue reading"),
+        desc = _("Put the title, tap action and label back to the defaults."),
+        value = _("Reset"), action = true,
+        on_tap = function()
+            KoboldEditors.confirm(_("Reset the continue reading settings?"), _("Reset"),
+                function() KoboldPrefs.reset(KoboldPrefs.CONTINUE_KEYS) end, refresh)
+        end,
+    }
+    return rows
+end
+
 function KoboldStatsSettings:spec()
+    if self.block == "continue" then return self:continueSpec() end
     local spec = {}
     local function append(rows) for _i, r in ipairs(rows) do spec[#spec + 1] = r end end
     append(self:lineRows("stats_line1", _("First line")))
@@ -155,7 +236,8 @@ function KoboldStatsSettings:build()
             VerticalGroup:new{
                 align = "left",
                 KoboldWidgets.fixed(inner, title_h, TextWidget:new{
-                    text = _("Reading stats"), face = KoboldWidgets.face(20), bold = true,
+                    text = self.block == "continue" and _("Continue reading") or _("Reading stats"),
+                    face = KoboldWidgets.face(20), bold = true,
                 }),
                 list,
             },
@@ -213,8 +295,9 @@ function KoboldStatsSettings:onClose()
 end
 
 -- Opens the popup above `under` (the settings screen); on_close runs after.
-function KoboldStatsSettings.show(under, on_close)
-    UIManager:show(KoboldStatsSettings:new{ under = under, on_close = on_close })
+-- `block` is "stats" (the default) or "continue".
+function KoboldStatsSettings.show(under, on_close, block)
+    UIManager:show(KoboldStatsSettings:new{ under = under, on_close = on_close, block = block or "stats" })
 end
 
 return KoboldStatsSettings

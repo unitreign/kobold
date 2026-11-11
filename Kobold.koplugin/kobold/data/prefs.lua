@@ -44,6 +44,9 @@ KoboldPrefs.STATS_KEYS = {
     "stats_label",
 }
 
+-- The settings behind the Continue reading popup, for its reset button.
+KoboldPrefs.CONTINUE_KEYS = { "continue_kind", "continue_text", "continue_action", "continue_label" }
+
 local function all()
     local t = G_reader_settings and G_reader_settings:readSetting(KEY)
     if type(t) ~= "table" then t = {} end
