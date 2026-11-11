@@ -16,7 +16,7 @@ local HorizontalSpan  = require("ui/widget/horizontalspan")
 local InputContainer  = require("ui/widget/container/inputcontainer")
 local LineWidget      = require("ui/widget/linewidget")
 local LeftContainer   = require("ui/widget/container/leftcontainer")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local TextBoxWidget   = require("ui/widget/textboxwidget")
 local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
@@ -31,6 +31,7 @@ local Screen = Device.screen
 local KoboldWifi = InputContainer:extend{
     modal = true,
     name = "kobold_wifi",
+    kobold_tool = "wifi",
 }
 
 local function networkMgr()
@@ -59,21 +60,10 @@ local function readState()
     return { available = true, on = on, connected = connected, ssid = ssid }
 end
 
--- On/off switch, as on the brightness popup: black with "On" when on.
+-- The on/off switch (switch.lua), and its width.
 local function switch(on)
-    local sw_w, sw_h = Screen:scaleBySize(64), Screen:scaleBySize(30)
-    return FrameContainer:new{
-        bordersize = Screen:scaleBySize(2), padding = 0,
-        radius = math.floor(sw_h / 2),
-        background = on and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE,
-        CenterContainer:new{
-            dimen = Geom:new{ w = sw_w - Screen:scaleBySize(4), h = sw_h - Screen:scaleBySize(4) },
-            TextWidget:new{
-                text = on and _("On") or _("Off"), face = KoboldWidgets.face(14), bold = true,
-                fgcolor = on and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK,
-            },
-        },
-    }, sw_w
+    local sw = require("kobold.ui.switch"):new{ on = on, height = Screen:scaleBySize(30) }
+    return sw, sw:getSize().w
 end
 
 -- Builds the box, in the e-reader's style: a switch row ("WI-FI: ENABLED"),
@@ -88,7 +78,7 @@ function KoboldWifi:build()
 
     local fw    = KoboldPopup.width()
     local inner = fw - 2 * (pad + border)
-    local fx, fy = KoboldPopup.origin(fw)
+    local fx, fy = KoboldPopup.origin(fw, "wifi")
     local x0, y0 = fx + border + pad, fy + border + pad
     local state = self.state
     self.rows = {}
@@ -149,17 +139,20 @@ function KoboldWifi:build()
                 self.rows.connect = Geom:new{ x = x0, y = y, w = inner, h = row_h }
             end
             y = y + row_h
-
-            -- Link to KOReader's list of networks, in italics.
-            content[#content + 1] = line()
-            y = y + line_h
-            content[#content + 1] = row(TextWidget:new{ text = _("Wi-Fi Settings"), face = KoboldWidgets.italicFace(16) })
-            self.rows.settings = Geom:new{ x = x0, y = y, w = inner, h = row_h }
         end
+
+        -- Link to KOReader's list of networks, in italics (also when off,
+        -- as on the e-reader).
+        content[#content + 1] = line()
+        y = y + line_h
+        content[#content + 1] = row(TextWidget:new{ text = _("Wi-Fi Settings"), face = KoboldWidgets.italicFace(16) })
+        self.rows.settings = Geom:new{ x = x0, y = y, w = inner, h = row_h }
     end
 
+    -- No extra space under the last row (Wi-Fi Settings): the row's own
+    -- room matches the space above it.
     local box = FrameContainer:new{
-        width = fw, bordersize = border, padding = pad,
+        width = fw, bordersize = border, padding = pad, padding_bottom = state.available and 0 or pad,
         radius = KoboldPopup.radius(),
         background = Blitbuffer.COLOR_WHITE,
         content,
@@ -222,21 +215,30 @@ end
 -- "Wi-Fi Settings": KOReader's list of networks, to pick another one.
 -- Scans first, like KOReader's own menu.
 function KoboldWifi:showNetworks()
+    local wifi_on = self.state and self.state.on
     self:runAfterClose(function(NetworkMgr)
-        local ok = pcall(function()
+        if not wifi_on then
+            -- Off: KOReader turns Wi-Fi on and then shows its network list.
+            if NetworkMgr.toggleWifiOn then
+                NetworkMgr:toggleWifiOn(nil, true, true)
+            else
+                NetworkMgr:reconnectOrShowNetworkMenu(nil, true)
+            end
+            return
+        end
+        local ok, shown = pcall(function()
             local info = InfoMessage:new{ text = _("Scanning for networks…") }
             UIManager:show(info)
             UIManager:forceRePaint()
-            local list, err = NetworkMgr:getNetworkList()
+            local list = NetworkMgr:getNetworkList()
             UIManager:close(info)
-            if not list then
-                UIManager:show(InfoMessage:new{ text = tostring(err) })
-                return
-            end
+            if not list then return false end
             table.sort(list, function(l, r) return (l.signal_quality or 0) > (r.signal_quality or 0) end)
             UIManager:show(require("ui/widget/networksetting"):new{ network_list = list })
+            return true
         end)
-        if not ok then NetworkMgr:reconnectOrShowNetworkMenu(nil, true) end
+        -- The scan failed: KOReader's own menu, which handles the errors.
+        if not (ok and shown) then NetworkMgr:reconnectOrShowNetworkMenu(nil, true) end
     end)
 end
 

@@ -15,6 +15,7 @@ local TextBoxWidget   = require("ui/widget/textboxwidget")
 local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
 local VerticalGroup   = require("ui/widget/verticalgroup")
+local Widget          = require("ui/widget/widget")
 local VerticalSpan    = require("ui/widget/verticalspan")
 local lfs             = require("libs/libkoreader-lfs")
 local LineWidget      = require("ui/widget/linewidget")
@@ -47,6 +48,13 @@ end
 -- Italic serif for menu items, action words and buttons: KOReader's Noto
 -- Serif Italic. (KOReader's "infont" is a monospace font, not italic.)
 -- Falls back to the normal face when the font file is missing.
+-- Upright serif (KOReader's Noto Serif), for popup titles and labels.
+function KoboldWidgets.serifFace(size)
+    local ok, face = pcall(function() return Font:getFace("NotoSerif-Regular.ttf", size) end)
+    if ok and face then return face end
+    return KoboldWidgets.face(size)
+end
+
 function KoboldWidgets.italicFace(size)
     local ok, face = pcall(function() return Font:getFace("NotoSerif-Italic.ttf", size) end)
     if ok and face then return face end
@@ -445,10 +453,40 @@ local function toolbarItems()
     local out = {}
     for i, id in ipairs(require("kobold.data.bars").items("toolbar")) do
         local w = size
-        if id == "battery" then w = math.floor(size * (style == "percent" and 1.7 or 1.3)) end
+        if id == "battery" then w = math.floor(size * 1.3) end
         out[i] = { id = id, w = w }
     end
     return out, size, Screen:scaleBySize(STATUS_GAP), style
+end
+
+-- A toolbar icon while its popup is open: the icon in white on a black
+-- circle. It takes the icon's own size in the bar (the circle reaches past
+-- it), so nothing around it moves.
+local ActiveIcon = Widget:extend{ child = nil, d = 0 }
+
+function ActiveIcon:getSize()
+    return self.child:getSize()
+end
+
+function ActiveIcon:paintTo(bb, x, y)
+    local size = self.child:getSize()
+    local d = self.d
+    local cx, cy = x + math.floor(size.w / 2), y + math.floor(size.h / 2)
+    local left, top = cx - math.floor(d / 2), cy - math.floor(d / 2)
+    -- A white disc, the icon drawn as usual, then the disc inverted row by
+    -- row: a black circle with the icon in white.
+    local function chords(fn)
+        local r = d / 2
+        for row = 0, d - 1 do
+            local dy = row + 0.5 - r
+            local half = math.floor(math.sqrt(math.max(0, r * r - dy * dy)) + 0.5)
+            if half > 0 then fn(cx - half, top + row, 2 * half) end
+        end
+    end
+    chords(function(cx0, cy0, w) bb:paintRect(cx0, cy0, w, 1, Blitbuffer.COLOR_WHITE) end)
+    self.child:paintTo(bb, x, y)
+    chords(function(cx0, cy0, w) bb:invertRect(cx0, cy0, w, 1) end)
+    self.dimen = Geom:new{ x = left, y = top, w = d, h = d }
 end
 
 -- The widget for toolbar item `item`.
@@ -469,13 +507,18 @@ local function toolbarIcon(item, size, style)
 end
 
 -- Shared top status bar: time on the left, the toolbar's icons on the right.
-function KoboldWidgets.statusBar(content_w)
+-- `active`: the item whose popup is open, drawn in a black circle.
+function KoboldWidgets.statusBar(content_w, active)
     local time_text = TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }
     local items, size, gap, style = toolbarItems()
     local icons = HorizontalGroup:new{}
     for i, item in ipairs(items) do
         if i > 1 then icons[#icons + 1] = HorizontalSpan:new{ width = gap } end
-        icons[#icons + 1] = toolbarIcon(item, size, style)
+        local icon = toolbarIcon(item, size, style)
+        if item.id == active then
+            icon = ActiveIcon:new{ child = icon, d = require("kobold.ui.popup").activeCircle() }
+        end
+        icons[#icons + 1] = icon
     end
     local spacer = content_w - time_text:getSize().w - icons:getSize().w
     return HorizontalGroup:new{
@@ -497,14 +540,24 @@ function KoboldWidgets.clock24()
     return not (G_reader_settings and G_reader_settings:isTrue("twelve_hour_clock"))
 end
 
--- Current time for the status bar: "22:42" or "10:42 PM".
+-- Current time for the status bar: "22:42" or "10:42 PM", with the date
+-- before it ("12 Nov  22:42") when the clock popup's switch is on.
 function KoboldWidgets.clockText()
-    if KoboldWidgets.clock24() then return os.date("%H:%M") end
-    return (os.date("%I:%M %p"):gsub("^0", ""))
+    local time
+    if KoboldWidgets.clock24() then
+        time = os.date("%H:%M")
+    else
+        time = (os.date("%I:%M %p"):gsub("^0", ""))
+    end
+    if KoboldPrefs.get("status_date") == true then
+        time = (os.date("%d %b"):gsub("^0", "")) .. "  " .. time
+    end
+    return time
 end
 
 function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
-    local frame = KoboldWidgets.fixed(content_w, status_h, KoboldWidgets.statusBar(content_w))
+    local frame = KoboldWidgets.fixed(content_w, status_h,
+        KoboldWidgets.statusBar(content_w, screen._kobold_active_tool))
     screen._kobold_status = {
         frame = frame,
         dimen = Geom:new{ x = margin, y = margin, w = content_w, h = status_h },
@@ -513,10 +566,16 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
     -- One tap zone per toolbar item, right-aligned like the icons. Built-in
     -- items open their popup (the popups' arrows point at their icon);
     -- custom actions run. Zones of items no longer shown are dropped.
+    local function popup(module)
+        return function()
+            KoboldWidgets.bar_screen = screen
+            require(module).show()
+        end
+    end
     local builtin = {
-        brightness = function() require("kobold.ui.brightness").show() end,
-        wifi = function() require("kobold.ui.wifi").show() end,
-        battery = function() require("kobold.ui.battery_popup").show() end,
+        brightness = popup("kobold.ui.brightness"),
+        wifi = popup("kobold.ui.wifi"),
+        battery = popup("kobold.ui.battery_popup"),
         search = function() KoboldWidgets.openSearch(screen) end,
     }
     local items, _size, gap = toolbarItems()
@@ -597,12 +656,23 @@ function KoboldWidgets.startClock(screen)
 end
 
 -- Redraws the status bar of `screen` (time, Wi-Fi and battery) and refreshes
--- only that strip of the screen.
+-- only that strip of the screen (a little taller, for the black circle).
 function KoboldWidgets.refreshStatusBar(screen)
     local s = screen._kobold_status
     if not s then return end
-    s.frame[1] = KoboldWidgets.statusBar(s.dimen.w)
-    UIManager:setDirty(screen, function() return "ui", s.dimen end)
+    s.frame[1] = KoboldWidgets.statusBar(s.dimen.w, screen._kobold_active_tool)
+    local extra = Screen:scaleBySize(6)
+    local region = Geom:new{ x = s.dimen.x, y = s.dimen.y - extra, w = s.dimen.w, h = s.dimen.h + 2 * extra }
+    UIManager:setDirty(screen, function() return "ui", region end)
+end
+
+-- A toolbar popup opened or closed (popup.lua): its icon gets, or loses,
+-- its black circle on the screen it was opened from.
+require("kobold.ui.popup").on_active = function(id)
+    local screen = KoboldWidgets.bar_screen
+    if not screen then return end
+    screen._kobold_active_tool = id
+    KoboldWidgets.refreshStatusBar(screen)
 end
 
 -- KOReader's book menu for `file`: the dialog the file browser shows on a
@@ -639,7 +709,7 @@ function KoboldWidgets.debugScreenshot()
     end)
     if not ok then
         logger.warn("Kobold: screenshot failed:", tostring(err))
-        local InfoMessage = require("ui/widget/infomessage")
+        local InfoMessage = require("kobold.ui.prompts").Notice
         UIManager:show(InfoMessage:new{ text = _.T(_("Screenshot failed: %1"), tostring(err)) })
     end
     UIManager:scheduleIn(2, function() UIManager:setDirty("all", "full") end)
@@ -663,7 +733,7 @@ function KoboldWidgets.showFileSearch()
     local shown = searcher and searcher.onShowFileSearch
         and pcall(searcher.onShowFileSearch, searcher)
     if not shown then
-        local InfoMessage = require("ui/widget/infomessage")
+        local InfoMessage = require("kobold.ui.prompts").Notice
         UIManager:show(InfoMessage:new{ text = _("File search is not available.") })
     end
 end

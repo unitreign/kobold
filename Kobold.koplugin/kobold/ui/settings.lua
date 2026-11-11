@@ -11,7 +11,7 @@ local Device          = require("device")
 local Event           = require("ui/event")
 local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local HorizontalSpan  = require("ui/widget/horizontalspan")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local InputContainer  = require("ui/widget/container/inputcontainer")
@@ -100,7 +100,7 @@ function KoboldSettings:spec()
             {
                 title = _("Files tab"),
                 desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
-                value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
+                switch = KoboldPrefs.get("files_tab") and true or false,
                 on_tap = function()
                     KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
                     done()
@@ -139,7 +139,7 @@ function KoboldSettings:spec()
             {
                 title = _("Opening and closing panel"),
                 desc = _("Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."),
-                value = KoboldPrefs.get("transition") == true and _("On") or _("Off"),
+                switch = KoboldPrefs.get("transition") == true,
                 on_tap = function()
                     KoboldPrefs.set("transition", KoboldPrefs.get("transition") ~= true or nil)
                     done()
@@ -377,8 +377,14 @@ function KoboldSettings:init()
             if page then self:goToPage(page) end
             return
         end
-        local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
-        if on_tap then on_tap() end
+        KoboldSettingsList.pressTap(self, self.hits, ges.pos)
+    end)
+    -- Holding a row keeps it inverted until the finger comes up.
+    KoboldTaps.hold(self, "KoboldSettingsHold", 0, 0, W, H, function(ges)
+        KoboldSettingsList.pressHold(self, self.hits, ges.pos)
+    end)
+    KoboldTaps.release(self, "KoboldSettingsRelease", 0, 0, W, H, function(ges)
+        KoboldSettingsList.pressRelease(self, self.hits, ges.pos)
     end)
     -- Swipe up for the next page, down for the previous one.
     self:registerTouchZones({

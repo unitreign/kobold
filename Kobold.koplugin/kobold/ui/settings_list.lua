@@ -45,6 +45,7 @@ end
 --   { section = "HOME" }                                   a gray band
 --   { title, desc = optional, value = optional text,
 --     action = true for an italic action word, on_tap = fn }  a row
+--     (switch = true / false shows the on/off switch instead of a value)
 -- Returns the widget (exactly `w` wide), the tap rectangles
 -- { { rect = Geom, on_tap = fn }, ... } in screen coordinates for a list
 -- drawn with its top-left corner at (x, y), and the index of the first item
@@ -92,11 +93,17 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
             return { widgets = widgets, h = h, section = true }
         end
         local text = TextWidget:new{ text = item.title, face = KoboldWidgets.face(16), max_width = text_w }
-        local value = TextWidget:new{
-            text = item.value or "",
-            face = item.action and actionFace(16) or KoboldWidgets.face(15),
-            max_width = value_w,
-        }
+        -- `switch` (true/false): the on/off switch instead of a value.
+        local value
+        if item.switch ~= nil then
+            value = require("kobold.ui.switch"):new{ on = item.switch, height = Screen:scaleBySize(26) }
+        else
+            value = TextWidget:new{
+                text = item.value or "",
+                face = item.action and actionFace(16) or KoboldWidgets.face(15),
+                max_width = value_w,
+            }
+        end
         local row_h = math.max(text:getSize().h, value:getSize().h) + 2 * row_pad
         local widgets = { HorizontalGroup:new{
             HorizontalSpan:new{ width = inset },
@@ -138,15 +145,17 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
             local tip = item.desc and function() KoboldSettingsList.showTip(item) end
             if tip then
                 -- Name: the tooltip. Value side: the setting itself.
-                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = inset + text_w, h = p.row_h }, on_tap = tip }
+                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = inset + text_w, h = p.row_h }, on_tap = tip,
+                    row_dx = 0, row_w = w }
                 if p.on_tap then
                     hits[#hits + 1] = {
                         rect = Geom:new{ x = x + inset + text_w, y = cy, w = w - inset - text_w, h = p.row_h },
-                        on_tap = p.on_tap,
+                        on_tap = p.on_tap, row_dx = -(inset + text_w), row_w = w,
                     }
                 end
             elseif p.on_tap then
-                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = w, h = p.row_h }, on_tap = p.on_tap }
+                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = w, h = p.row_h }, on_tap = p.on_tap,
+                    row_dx = 0, row_w = w }
             end
         end
         for _k, widget in ipairs(p.widgets) do list[#list + 1] = widget end
@@ -158,7 +167,7 @@ end
 
 -- Tooltip for a setting: its name and description in a small box.
 function KoboldSettingsList.showTip(item)
-    local InfoMessage = require("ui/widget/infomessage")
+    local InfoMessage = require("kobold.ui.prompts").Notice
     local UIManager = require("ui/uimanager")
     UIManager:show(InfoMessage:new{
         text = item.title .. "\n\n" .. item.desc,
@@ -170,9 +179,39 @@ end
 -- The on_tap of the row under `pos`, or nil.
 function KoboldSettingsList.hit(hits, pos)
     for _i, hit in ipairs(hits or {}) do
-        if pos:intersectWith(hit.rect) then return hit.on_tap end
+        if pos:intersectWith(hit.rect) then return hit.on_tap, hit end
     end
     return nil
+end
+
+-- The whole row of `hit` on screen (its rect may be just the name or the
+-- value side).
+local function rowRect(hit)
+    if not hit.row_w then return hit.rect end
+    return Geom:new{ x = hit.rect.x + hit.row_dx, y = hit.rect.y, w = hit.row_w, h = hit.rect.h }
+end
+
+-- Press feedback (press.lua) for the rows of `widget`: a tap flashes the
+-- row and runs it; a hold keeps it inverted until release runs it.
+-- Each returns true when `pos` was on a row.
+function KoboldSettingsList.pressTap(widget, hits, pos)
+    local on_tap, hit = KoboldSettingsList.hit(hits, pos)
+    if not on_tap then return false end
+    require("kobold.ui.press").tap(widget, rowRect(hit), on_tap)
+    return true
+end
+
+function KoboldSettingsList.pressHold(widget, hits, pos)
+    local on_tap, hit = KoboldSettingsList.hit(hits, pos)
+    if not on_tap then return false end
+    require("kobold.ui.press").hold(widget, rowRect(hit))
+    return true
+end
+
+function KoboldSettingsList.pressRelease(widget, hits, pos)
+    local on_tap, hit = KoboldSettingsList.hit(hits, pos)
+    require("kobold.ui.press").release(widget, hit and rowRect(hit), on_tap)
+    return on_tap ~= nil
 end
 
 return KoboldSettingsList

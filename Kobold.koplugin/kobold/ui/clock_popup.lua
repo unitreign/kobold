@@ -1,26 +1,20 @@
 -- kobold/ui/clock_popup.lua — Kobold
--- Clock popup, opened by tapping the time in the status bar. Left-aligned
--- under the bar, in the same box style as the other popups, with a switch
--- for 24-hour time. Until it is used, the clock follows KOReader's setting.
+-- Clock popup, opened by tapping the time in the status bar, in the same
+-- style as the toolbar popups: today's date and reading time, switches for
+-- 24-hour time and the date in the status bar, and how soon the device
+-- sleeps (KOReader's AutoSuspend setting).
 
-local Blitbuffer      = require("ffi/blitbuffer")
-local CenterContainer = require("ui/widget/container/centercontainer")
 local Device          = require("device")
 local Event           = require("ui/event")
-local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
 local GestureRange    = require("ui/gesturerange")
-local HorizontalGroup = require("ui/widget/horizontalgroup")
-local HorizontalSpan  = require("ui/widget/horizontalspan")
 local InputContainer  = require("ui/widget/container/inputcontainer")
-local TextWidget      = require("ui/widget/textwidget")
 local UIManager       = require("ui/uimanager")
-local VerticalGroup   = require("ui/widget/verticalgroup")
-local VerticalSpan    = require("ui/widget/verticalspan")
 local _               = require("kobold.l10n")
 local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldWidgets   = require("kobold.ui.widgets")
+local Kit             = require("kobold.ui.popup_kit")
 
 local Screen = Device.screen
 
@@ -29,54 +23,62 @@ local KoboldClockPopup = InputContainer:extend{
     name = "kobold_clock",
 }
 
-function KoboldClockPopup:build()
-    local pad, border = Screen:scaleBySize(16), Screen:scaleBySize(2)
-    local row_h = Screen:scaleBySize(40)
-    local gap = Screen:scaleBySize(6)
-    local fw = KoboldPopup.width()
-    local inner = fw - 2 * (pad + border)
-    local fx, fy = KoboldPopup.originLeft()
+-- KOReader's AutoSuspend plugin, when it is running.
+local function autoSuspend()
+    local FileManager = package.loaded["apps/filemanager/filemanager"]
+    local fm = FileManager and FileManager.instance
+    return fm and fm.autosuspend
+end
 
-    local on = KoboldWidgets.clock24()
-    local sw_w, sw_h = Screen:scaleBySize(64), Screen:scaleBySize(30)
-    local switch = FrameContainer:new{
-        bordersize = Screen:scaleBySize(2), padding = 0,
-        radius = math.floor(sw_h / 2),
-        background = on and Blitbuffer.COLOR_BLACK or Blitbuffer.COLOR_WHITE,
-        CenterContainer:new{
-            dimen = Geom:new{ w = sw_w - Screen:scaleBySize(4), h = sw_h - Screen:scaleBySize(4) },
-            TextWidget:new{
-                text = on and _("On") or _("Off"), face = KoboldWidgets.face(14), bold = true,
-                fgcolor = on and Blitbuffer.COLOR_WHITE or Blitbuffer.COLOR_BLACK,
-            },
-        },
-    }
-    local time = TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(30), bold = true }
-    local label = TextWidget:new{ text = _("24-hour clock"), face = KoboldWidgets.face(18) }
-    local content = VerticalGroup:new{
-        align = "left",
-        time,
-        VerticalSpan:new{ width = gap },
-        KoboldWidgets.fixed(inner, row_h, HorizontalGroup:new{
-            align = "center",
-            label,
-            HorizontalSpan:new{ width = math.max(0, inner - label:getSize().w - sw_w) },
-            switch,
-        }),
-    }
-    local box = FrameContainer:new{
-        bordersize = border, padding = pad,
-        radius = KoboldPopup.radius(),
-        background = Blitbuffer.COLOR_WHITE,
-        content,
-    }
-    local fh = box:getSize().h
-    self.frame_dimen = Geom:new{ x = fx, y = fy, w = fw, h = fh }
-    self.switch_rect = Geom:new{
-        x = fx + border + pad, y = fy + border + pad + time:getSize().h + gap,
-        w = inner, h = row_h,
-    }
-    return KoboldPopup.place(self.dimen, fx, fy, box, KoboldPopup.anchor("clock"))
+local SLEEP_CHOICES = { 5, 10, 15, 30, 60, 0 }  -- minutes; 0 = never
+
+local function sleepLabel(minutes)
+    if not minutes or minutes <= 0 then return _("Never") end
+    if minutes >= 60 and minutes % 60 == 0 then return _.N("%1 hour", "%1 hours", minutes / 60) end
+    return _.N("%1 minute", "%1 minutes", minutes)
+end
+
+-- Sets the auto-sleep timeout and restarts KOReader's timer with it.
+local function setSleep(minutes)
+    local seconds = minutes * 60
+    G_reader_settings:saveSetting("auto_suspend_timeout_seconds", seconds)
+    local plugin = autoSuspend()
+    if plugin then
+        plugin.auto_suspend_timeout_seconds = seconds
+        pcall(function() plugin:_unschedule() end)
+        pcall(function() plugin:_start() end)
+    end
+end
+
+function KoboldClockPopup:build()
+    -- "Thursday, 12 November"
+    local date = os.date("%A, %d %B"):gsub(", 0", ", ")
+    local rows = { Kit.text(date, 18) }
+    local read = require("kobold.data.tokens").expand("[today_time]")
+    if read ~= "–" then rows[#rows + 1] = Kit.text(_.T(_("Read today: %1"), read), 14, true) end
+    rows[#rows + 1] = Kit.line()
+    rows[#rows + 1] = Kit.switch(_("24-hour clock"), KoboldWidgets.clock24(), function()
+        KoboldPrefs.set("clock_24h", not KoboldWidgets.clock24())
+        self:changed()
+    end)
+    rows[#rows + 1] = Kit.switch(_("Date in status bar"), KoboldPrefs.get("status_date") == true, function()
+        KoboldPrefs.set("status_date", KoboldPrefs.get("status_date") ~= true or nil)
+        self:changed()
+    end)
+    local plugin = autoSuspend()
+    if plugin then
+        local minutes = math.floor((tonumber(plugin.auto_suspend_timeout_seconds) or 0) / 60)
+        rows[#rows + 1] = Kit.line()
+        rows[#rows + 1] = Kit.value(_("Sleep after"), sleepLabel(minutes), function()
+            local choices = {}
+            for i, m in ipairs(SLEEP_CHOICES) do choices[i] = { id = m, label = sleepLabel(m) } end
+            require("kobold.ui.picker").choose(_("Sleep after"), choices, minutes, function(m)
+                setSleep(m)
+                self:refresh()
+            end)
+        end)
+    end
+    return Kit.build(self, "clock", rows)
 end
 
 function KoboldClockPopup:init()
@@ -87,25 +89,28 @@ function KoboldClockPopup:init()
         self.key_events = { Close = { { Device.input.group.Back } } }
     end
     if Device:isTouchDevice() then
-        self.ges_events = {
-            TapClock = { GestureRange:new{ ges = "tap", range = self.dimen } },
-        }
+        self.ges_events = { TapClock = { GestureRange:new{ ges = "tap", range = self.dimen } } }
     end
+end
+
+function KoboldClockPopup:refresh()
+    if self.closed then return end
+    self[1] = self:build()
+    UIManager:setDirty(self, function() return "ui", self.frame_dimen end)
+end
+
+-- Open Kobold screens redraw their status bar with the new format.
+function KoboldClockPopup:changed()
+    UIManager:broadcastEvent(Event:new("KoboldSettingsChanged"))
+    self:refresh()
 end
 
 function KoboldClockPopup:onTapClock(_, ges)
-    if not ges.pos:intersectWith(self.frame_dimen) then return self:onClose() end
-    if ges.pos:intersectWith(self.switch_rect) then
-        KoboldPrefs.set("clock_24h", not KoboldWidgets.clock24())
-        -- Open Kobold screens redraw their status bar with the new format.
-        UIManager:broadcastEvent(Event:new("KoboldSettingsChanged"))
-        self[1] = self:build()
-        UIManager:setDirty(self, function() return "ui", self.frame_dimen end)
-    end
-    return true
+    return Kit.tap(self, ges.pos)
 end
 
 function KoboldClockPopup:onClose()
+    self.closed = true
     KoboldPopup.close(self)
     return true
 end

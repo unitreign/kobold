@@ -42,7 +42,13 @@ function KoboldPopup.panelRect()
 end
 
 function KoboldPopup.width()
-    return math.floor(Screen:getWidth() / 2)
+    return math.floor(Screen:getWidth() * 0.52)
+end
+
+-- Diameter of the black circle behind a toolbar icon while its popup is
+-- open (see widgets.lua).
+function KoboldPopup.activeCircle()
+    return Screen:scaleBySize(36)
 end
 
 -- Gap between the status bar and the box, room for the arrow.
@@ -53,11 +59,19 @@ function KoboldPopup.originLeft()
     return margin(), margin() + statusH() + topGap()
 end
 
--- Top-left corner of a box `fw` wide: its right edge lines up with the right
--- edge of the status bar.
-function KoboldPopup.origin(fw)
-    local x = Screen:getWidth() - margin() - fw
-    local y = margin() + statusH() + topGap()
+-- Top-left corner of a box `fw` wide. With `name` (a status bar item), the
+-- box is centred under that item, kept inside the screen, and its top sits
+-- just under the item's black circle, so the arrow comes straight out of
+-- it. Without, its right edge lines up with the right edge of the status bar.
+function KoboldPopup.origin(fw, name)
+    local W = Screen:getWidth()
+    local ax = name and KoboldPopup.anchor(name)
+    if not ax then
+        return W - margin() - fw, margin() + statusH() + topGap()
+    end
+    local x = math.max(margin(), math.min(W - margin() - fw, ax - math.floor(fw / 2)))
+    local y = margin() + math.floor(statusH() / 2) + math.floor(KoboldPopup.activeCircle() / 2)
+        + arrowH() - border()
     return x, y
 end
 
@@ -186,8 +200,20 @@ local function region(popup)
     return Geom:new{ x = d.x - h, y = d.y - h, w = d.w + 2 * h, h = d.h + 2 * h }
 end
 
+-- Called with a toolbar item's name while its popup is open, and with nil
+-- once it closes; widgets.lua draws that item's icon in a black circle.
+KoboldPopup.on_active = nil
+
+local function setActive(popup, on)
+    if popup.kobold_tool and KoboldPopup.on_active then
+        pcall(KoboldPopup.on_active, on and popup.kobold_tool or nil)
+    end
+end
+
 -- Shows `popup` and refreshes only its box (popup.frame_dimen) and arrow.
+-- A toolbar popup (popup.kobold_tool set) also marks its icon.
 function KoboldPopup.show(popup)
+    setActive(popup, true)
     UIManager:show(popup, "ui", region(popup))
 end
 
@@ -195,6 +221,7 @@ end
 -- so no trace of the box is left on e-ink.
 function KoboldPopup.close(popup)
     UIManager:close(popup, "ui", region(popup))
+    setActive(popup, false)
 end
 
 return KoboldPopup

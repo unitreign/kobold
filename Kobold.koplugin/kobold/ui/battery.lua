@@ -112,16 +112,40 @@ function KoboldBattery:paintTo(bb, x, y)
     if not self.level or not self.show_level then return end
 
     if self.style == "percent" then
+        -- The number about as tall as the icon itself (like the charging
+        -- bolt, it may reach past the outline). Each pixel of it flips the
+        -- pixel under it: black on the white inside, white where it crosses
+        -- the black outline, so it reads everywhere at full size.
         local inner_w, inner_h = px(INNER.w), px(INNER.h)
         local text = TextWidget:new{
             text = tostring(math.floor(self.level + 0.5)),
-            face = Font:getFace("cfont", math.max(6, math.floor(inner_h * 0.75 / Screen:scaleBySize(1)))),
+            face = Font:getFace("cfont", math.max(6, math.floor(self.size * 0.62 / Screen:scaleBySize(1)))),
             bold = true,
-            max_width = inner_w,
         }
         local ts = text:getSize()
-        text:paintTo(bb, x + px(INNER.x) + math.floor((inner_w - ts.w) / 2),
-            top + px(INNER.y) + math.floor((inner_h - ts.h) / 2))
+        local tx = x + px(INNER.x) + math.floor((inner_w - ts.w) / 2)
+        local ty = top + px(INNER.y) + math.floor((inner_h - ts.h) / 2)
+        -- The text alone on a white bitmap, then each dark pixel of it
+        -- inverts the screen there.
+        local ok = pcall(function()
+            local tmp = Blitbuffer.new(ts.w, ts.h, Blitbuffer.TYPE_BB8)
+            tmp:fill(Blitbuffer.COLOR_WHITE)
+            text:paintTo(tmp, 0, 0)
+            for py = 0, ts.h - 1 do
+                local run = nil
+                for pxl = 0, ts.w do
+                    local dark = pxl < ts.w and tmp:getPixel(pxl, py):getColor8().a < 128
+                    if dark and not run then
+                        run = pxl
+                    elseif not dark and run then
+                        bb:invertRect(tx + run, ty + py, pxl - run, 1)
+                        run = nil
+                    end
+                end
+            end
+            tmp:free()
+        end)
+        if not ok then text:paintTo(bb, tx, ty) end
         text:free()
     end
 end
