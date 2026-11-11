@@ -17,7 +17,6 @@
 -- kobold/ui/mybooks/ (installed at the end of this file).
 
 local Blitbuffer      = require("ffi/blitbuffer")
-local ButtonDialog    = require("ui/widget/buttondialog")
 local CenterContainer = require("ui/widget/container/centercontainer")
 local Device          = require("device")
 local FrameContainer  = require("ui/widget/container/framecontainer")
@@ -813,26 +812,14 @@ function KoboldMyBooks:closeGroup()
     self:refresh()
 end
 
--- Popup with one button per choice; the current choice is marked with a check.
--- `ids` are in menu order, `label(id)` gives each button's text.
+-- Kobold's choice popup (picker.lua), the current choice ticked. `ids` are
+-- in menu order, `label(id)` gives each row's text.
 function KoboldMyBooks:showChoiceDialog(title, ids, current, label, on_pick)
-    local dialog
-    local buttons = {}
-    for _i, id in ipairs(ids) do
-        buttons[#buttons + 1] = {{
-            text = (id == current and "✓  " or "") .. label(id),
-            callback = function()
-                UIManager:close(dialog)
-                if id ~= current then on_pick(id) end
-            end,
-        }}
-    end
-    dialog = ButtonDialog:new{
-        title = title,
-        width = math.floor(Screen:getWidth() * 0.6),
-        buttons = buttons,
-    }
-    UIManager:show(dialog)
+    local choices = {}
+    for i, id in ipairs(ids) do choices[i] = { id = id, label = label(id) } end
+    require("kobold.ui.picker").choose(title, choices, current, function(id)
+        if id ~= current then on_pick(id) end
+    end)
 end
 
 -- Saves a new filter or sort choice and redraws the list from page 1.

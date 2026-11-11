@@ -136,7 +136,7 @@ local function pickIcon(current, on_pick, done)
             icons = iconsIn(dir, "file:", true)
             empty = _.T(_("No icons yet. Put SVG or PNG files in %1 and try again."), dir)
         end
-        KoboldEditors.list(_("Icon"), icons, current, on_pick, done, empty)
+        KoboldEditors.icons(_("Icon"), icons, current, on_pick, done, empty)
     end, done)
 end
 

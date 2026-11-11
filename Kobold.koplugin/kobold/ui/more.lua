@@ -9,7 +9,6 @@ local FrameContainer  = require("ui/widget/container/framecontainer")
 local Geom            = require("ui/geometry")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
-local ConfirmBox      = require("ui/widget/confirmbox")
 local InfoMessage     = require("ui/widget/infomessage")
 local InputContainer  = require("ui/widget/container/inputcontainer")
 local LeftContainer   = require("ui/widget/container/leftcontainer")
@@ -63,7 +62,7 @@ function KoboldMore:init()
             { label = _("Kobold Settings"), icon = "appbar.settings", action = function() self:showKoboldSettings() end },
             { label = _("About Kobold"), icon = "notice-info", fallback = "appbar.menu",
               action = function() self:showAbout() end },
-            { label = _("Check for updates"), icon = "check", fallback = "notice-info",
+            { label = _("Check for updates"), icon = "check", fallback = "notice-info", kobold_icon = "update",
               action = function() require("kobold.updater").check() end },
             { label = _("Restart Kobold"), icon = "cre.render.reload", fallback = "tab_history",
               action = function() self:restartKobold() end },
@@ -87,7 +86,7 @@ function KoboldMore:init()
         end
         for _i, row in ipairs(rows) do
             n = n + 1
-            list[#list + 1] = self:buildRow(row_h, icon_size, row.icon, row.label, row.fallback)
+            list[#list + 1] = self:buildRow(row_h, icon_size, row.icon, row.label, row.fallback, row.kobold_icon)
             list[#list + 1] = LineWidget:new{
                 dimen = Geom:new{ w = content_w, h = line_h },
                 background = Blitbuffer.COLOR_LIGHT_GRAY,
@@ -129,7 +128,9 @@ function KoboldMore:init()
 end
 
 -- One list row: KOReader icon (or `fallback` when missing) and a label, vertically centred in row_h.
-function KoboldMore:buildRow(row_h, icon_size, icon, label, fallback)
+-- `kobold_icon`: one of Kobold's own icons, used instead of `icon` when
+-- Kobold Settings > Icons is set to Kobold.
+function KoboldMore:buildRow(row_h, icon_size, icon, label, fallback, kobold_icon)
     local text = TextWidget:new{ text = label, face = KoboldWidgets.face(18) }
     -- Centre the taller of icon and text inside the row height, so the row is
     -- exactly row_h tall and the tap zones line up with the separators.
@@ -139,7 +140,8 @@ function KoboldMore:buildRow(row_h, icon_size, icon, label, fallback)
         align = "left",
         VerticalSpan:new{ width = top },
         HorizontalGroup:new{
-            KoboldWidgets.icon(icon, icon_size, { fallback = fallback }),
+            kobold_icon and KoboldWidgets.koboldIcons() and KoboldWidgets.customIcon(kobold_icon, icon_size, icon)
+                or KoboldWidgets.icon(icon, icon_size, { fallback = fallback }),
             HorizontalSpan:new{ width = Screen:scaleBySize(18) },
             text,
         },
@@ -158,15 +160,14 @@ end
 -- Asks first, then restarts KOReader (the same restart as KOReader's own
 -- Exit menu).
 function KoboldMore:confirmKOReader(restart)
-    UIManager:show(ConfirmBox:new{
-        text = restart and _("Restart KOReader?") or _("Exit KOReader?"),
-        ok_text = restart and _("Restart") or _("Exit"),
-        ok_callback = function()
+    require("kobold.ui.picker").confirm(
+        restart and _("Restart KOReader?") or _("Exit KOReader?"),
+        restart and _("Restart") or _("Exit"),
+        function()
             if not self:exitKOReader(restart) then
                 UIManager:show(InfoMessage:new{ text = _("KOReader cannot do that from here.") })
             end
-        end,
-    })
+        end)
 end
 
 -- Exits or restarts KOReader the way its own Exit menu does, through the

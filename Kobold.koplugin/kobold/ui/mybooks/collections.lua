@@ -5,7 +5,6 @@
 -- Adds methods to the My Books screen class (see mybooks.lua, which
 -- installs this with the values it shares).
 
-local ConfirmBox        = require("ui/widget/confirmbox")
 local InfoMessage       = require("ui/widget/infomessage")
 local InputDialog       = require("ui/widget/inputdialog")
 local UIManager         = require("ui/uimanager")
@@ -143,16 +142,15 @@ return function(KoboldMyBooks, shared)
     function KoboldMyBooks:confirmRemoveCollection(group)
         local RC = readCollection()
         if not RC then return end
-        UIManager:show(ConfirmBox:new{
-            text = _("Remove collection?") .. "\n\n" .. group.name
+        require("kobold.ui.picker").confirm(
+            _("Remove collection?") .. "\n\n" .. group.name
                 .. "\n\n" .. _("The books stay in your library."),
-            ok_text = _("Remove"),
-            ok_callback = function()
+            _("Remove"),
+            function()
                 RC:removeCollection(group.key)
                 saveCollections(RC, nil)
                 self:scheduleReload()
-            end,
-        })
+            end)
     end
 
     -- Filter, sort and cover view inside a collection, kept for each collection.

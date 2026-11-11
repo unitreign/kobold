@@ -6,7 +6,6 @@
 -- over this plugin's own folder, then offers a KOReader restart.
 -- Based on the Mythos updater.
 
-local ConfirmBox  = require("ui/widget/confirmbox")
 local DataStorage = require("datastorage")
 local InfoMessage = require("ui/widget/infomessage")
 local UIManager   = require("ui/uimanager")
@@ -138,12 +137,9 @@ local function install(release)
             UIManager:show(InfoMessage:new{ text = _("Installing the update failed. Please update manually."), timeout = 5 })
             return
         end
-        UIManager:show(ConfirmBox:new{
-            text = _.T(_("Kobold %1 is installed.\n\nRestart KOReader to use it?"), release.version),
-            ok_text = _("Restart now"),
-            cancel_text = _("Later"),
-            ok_callback = function() UIManager:restartKOReader() end,
-        })
+        require("kobold.ui.picker").confirm(
+            _.T(_("Kobold %1 is installed.\n\nRestart KOReader to use it?"), release.version),
+            _("Restart now"), function() UIManager:restartKOReader() end, nil, _("Later"))
     end)
 end
 
@@ -174,13 +170,11 @@ function KoboldUpdater.check()
                 })
                 return
             end
-            UIManager:show(ConfirmBox:new{
-                text = _.T(_("Kobold %1 is available. You have %2."), release.version, current)
+            require("kobold.ui.picker").confirm(
+                _.T(_("Kobold %1 is available. You have %2."), release.version, current)
                     .. (release.notes and ("\n\n" .. release.notes) or "")
                     .. "\n\n" .. _("Download and install now?"),
-                ok_text = _("Install"),
-                ok_callback = function() install(release) end,
-            })
+                _("Install"), function() install(release) end)
         end)
     end)
 end
