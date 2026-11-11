@@ -20,13 +20,13 @@ local Screen = Device.screen
 
 local KoboldNav = {}
 
--- `icon` is one of Kobold's own icons (an outline; "<icon>-filled" is shown
--- when the tab is selected); `fallback` is the KOReader icon used when that
--- file is missing.
+-- The built-in tabs. `icon` is one of Kobold's own icons (an outline;
+-- "<icon>-filled" is shown when the tab is selected); `fallback` is the
+-- KOReader icon used when that file is missing.
 local TABS = {
-    { id = "home",  text = _("Home"),  icon = "home",     fallback = "home",      event = "NavHome" },
-    { id = "books", text = _("My Books"), icon = "my-books", fallback = "library",   event = "NavBooks" },
-    { id = "more",  text = _("More"),  icon = "more",     fallback = "appbar.menu", event = "NavMore" },
+    home  = { text = _("Home"),     icon = "home",     fallback = "home" },
+    books = { text = _("My Books"), icon = "my-books", fallback = "library" },
+    more  = { text = _("More"),     icon = "more",     fallback = "appbar.menu" },
 }
 
 function KoboldNav.height()
@@ -42,38 +42,61 @@ local function tabBar(tab_w, bar_h, selected)
 end
 
 -- Registers the tab tap zones on `screen` (sized W x H) and returns the nav
--- widget, pushed to the bottom edge. Use it inside an OverlapGroup.
+-- widget, pushed to the bottom edge. Use it inside an OverlapGroup. The tabs
+-- are the nav bar's items (Kobold Settings > Nav bar): built-in tabs open
+-- their screen and show as selected on it; custom actions are buttons that
+-- run their action.
 function KoboldNav.attach(screen, W, H, active)
+    local KoboldBars = require("kobold.data.bars")
+    local items = KoboldBars.items("nav")
     local nav_h = KoboldNav.height()
     local bar_h = Screen:scaleBySize(3)
-    local tab_w = math.floor(W / #TABS)
+    local tab_w = math.floor(W / #items)
     local nav_top = H - nav_h
+    local icon_size = Screen:scaleBySize(24)
 
     local row = HorizontalGroup:new{}
-    for i, tab in ipairs(TABS) do
-        local id = tab.id
-        local selected = tab.id == active
-        KoboldTaps.add(screen, tab.event, (i - 1) * tab_w, nav_top, tab_w, nav_h, function()
-            KoboldRouter.show(id, screen)
+    for i, id in ipairs(items) do
+        local tab = TABS[id]
+        local selected = id == active
+        local icon, text
+        if tab then
+            -- The selected tab shows the filled version of its icon.
+            icon = KoboldWidgets.customIcon(selected and tab.icon .. "-filled" or tab.icon,
+                icon_size, tab.fallback)
+            text = tab.text
+        else
+            local c = KoboldBars.custom(id)
+            icon = KoboldWidgets.iconFromSpec(c and c.icon, icon_size)
+            text = c and c.name or ""
+        end
+        KoboldTaps.add(screen, "KoboldNav" .. i, (i - 1) * tab_w, nav_top, tab_w, nav_h, function()
+            if tab then KoboldRouter.show(id, screen) else KoboldBars.runCustom(id) end
         end)
         row[#row + 1] = VerticalGroup:new{
             tabBar(tab_w, bar_h, selected),
             CenterContainer:new{
                 dimen = Geom:new{ w = tab_w, h = nav_h - bar_h },
                 VerticalGroup:new{
-                    -- The selected tab shows the filled version of its icon.
-                    KoboldWidgets.customIcon(selected and tab.icon .. "-filled" or tab.icon,
-                        Screen:scaleBySize(24), tab.fallback),
+                    icon,
                     VerticalSpan:new{ width = Screen:scaleBySize(3) },
                     TextWidget:new{
-                        text = tab.text,
+                        text = text,
                         face = KoboldWidgets.face(16),
                         bold = selected,
+                        max_width = tab_w - Screen:scaleBySize(8),
                     },
                 },
             },
         }
     end
+    -- Zones of tabs an earlier build had and this one does not.
+    for i = #items + 1, screen._kobold_nav_n or 0 do
+        if screen.unRegisterTouchZones then
+            screen:unRegisterTouchZones({ { id = "KoboldNav" .. i } })
+        end
+    end
+    screen._kobold_nav_n = #items
 
     return VerticalGroup:new{
         VerticalSpan:new{ width = nav_top },

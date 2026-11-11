@@ -206,6 +206,34 @@ function KoboldWidgets.customIcon(name, size, fallback)
     return KoboldWidgets.icon(fallback or name, size)
 end
 
+-- An icon chosen for a custom action (Kobold Settings > Custom actions):
+--   "kobold:<name>"    one of Kobold's icons (icons/<name>.svg)
+--   "koreader:<name>"  a KOReader icon
+--   "file:<path>"      an SVG or PNG of the user's own
+-- Anything else, or a missing file, shows a plain placeholder icon.
+local PLACEHOLDER_ICON = "appbar.menu"
+function KoboldWidgets.iconFromSpec(spec, size)
+    local kind, rest = type(spec) == "string" and spec:match("^(%a+):(.+)$")
+    local file
+    if kind == "kobold" then
+        file = KoboldMeta.icon(rest .. ".svg")
+    elseif kind == "file" then
+        file = rest
+    elseif kind == "koreader" then
+        return KoboldWidgets.icon(rest, size, { fallback = PLACEHOLDER_ICON })
+    end
+    if file and lfs.attributes(file, "mode") == "file" then
+        local ok, widget = pcall(function()
+            return IconWidget:new{
+                file = file, width = size, height = size,
+                alpha = true, original_in_nightmode = false,
+            }
+        end)
+        if ok and widget then return widget end
+    end
+    return KoboldWidgets.icon(PLACEHOLDER_ICON, size)
+end
+
 function KoboldWidgets.icon(name, size, opts)
     opts = opts or {}
     if opts.fallback and not KoboldWidgets.hasIcon(name) then name = opts.fallback end
@@ -408,27 +436,46 @@ local STATUS_GAP  = 18
 -- search. The battery SVG only fills the middle of
 -- its square, so it is drawn larger than the others (more so with the
 -- percentage inside, to keep the number readable).
-local function statusIconWidths()
+-- The toolbar's items (Kobold Settings > Toolbar), each with its width:
+-- { { id, w }, ... }, plus the icon size, the gap and the battery style.
+local function toolbarItems()
     local size = Screen:scaleBySize(STATUS_ICON)
     local style = KoboldPrefs.get("battery")
-    local battery = math.floor(size * (style == "percent" and 1.7 or 1.3))
-    return { size, size, battery, size }, size, Screen:scaleBySize(STATUS_GAP), style
+    local out = {}
+    for i, id in ipairs(require("kobold.data.bars").items("toolbar")) do
+        local w = size
+        if id == "battery" then w = math.floor(size * (style == "percent" and 1.7 or 1.3)) end
+        out[i] = { id = id, w = w }
+    end
+    return out, size, Screen:scaleBySize(STATUS_GAP), style
 end
 
--- Shared top status bar: time on the left, then contrast, Wi-Fi, battery and
--- search icons on the right.
+-- The widget for toolbar item `item`.
+local function toolbarIcon(item, size, style)
+    local id = item.id
+    if id == "brightness" then
+        return KoboldWidgets.customIcon("brightness", size, "appbar.contrast")
+    elseif id == "wifi" then
+        return KoboldWidgets.customIcon(KoboldWidgets.wifiIconName(), size, "wifi.open.100")
+    elseif id == "battery" then
+        return KoboldBattery:new{ size = item.w, slot_h = size, style = style }
+    elseif id == "search" then
+        return KoboldWidgets.customIcon("search", size,
+            KoboldWidgets.hasIcon("lookup.search") and "lookup.search" or "appbar.search")
+    end
+    local c = require("kobold.data.bars").custom(id)
+    return KoboldWidgets.iconFromSpec(c and c.icon, size)
+end
+
+-- Shared top status bar: time on the left, the toolbar's icons on the right.
 function KoboldWidgets.statusBar(content_w)
     local time_text = TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }
-    local widths, size, gap, style = statusIconWidths()
-    local icons = HorizontalGroup:new{
-        KoboldWidgets.customIcon("brightness", size, "appbar.contrast"),
-        HorizontalSpan:new{ width = gap },
-        KoboldWidgets.customIcon(KoboldWidgets.wifiIconName(), size, "wifi.open.100"),
-        HorizontalSpan:new{ width = gap },
-        KoboldBattery:new{ size = widths[3], slot_h = size, style = style },
-        HorizontalSpan:new{ width = gap },
-        KoboldWidgets.customIcon("search", size, KoboldWidgets.hasIcon("lookup.search") and "lookup.search" or "appbar.search"),
-    }
+    local items, size, gap, style = toolbarItems()
+    local icons = HorizontalGroup:new{}
+    for i, item in ipairs(items) do
+        if i > 1 then icons[#icons + 1] = HorizontalSpan:new{ width = gap } end
+        icons[#icons + 1] = toolbarIcon(item, size, style)
+    end
     local spacer = content_w - time_text:getSize().w - icons:getSize().w
     return HorizontalGroup:new{
         time_text,
@@ -437,22 +484,10 @@ function KoboldWidgets.statusBar(content_w)
     }
 end
 
--- Left edge and width of status bar icon `index` (1 = contrast ... 4 =
--- search), from the same sizes statusBar() uses. Icons sit at the right edge.
-local function statusIconX(margin, content_w, index)
-    local widths, _size, gap = statusIconWidths()
-    local total = (#widths - 1) * gap
-    for _i, w in ipairs(widths) do total = total + w end
-    local x = margin + content_w - total
-    for i = 1, index - 1 do x = x + widths[i] + gap end
-    return x, widths[index], gap
-end
-
 -- The status bar in a fixed-size frame, for the top of a Kobold screen whose
--- body starts at (margin, margin). Also registers the tap zones over the
--- contrast icon (brightness popup), the Wi-Fi icon (Wi-Fi popup) and the
--- search icon (KOReader's file search). The frame is remembered on `screen`
--- so refreshStatusBar can redraw just the bar.
+-- body starts at (margin, margin). Also registers a tap zone over each
+-- toolbar item (its popup, or the custom action it runs) and the clock. The
+-- frame is remembered on `screen` so refreshStatusBar can redraw just the bar.
 -- True when the clock shows 24-hour time: Kobold's own choice (clock
 -- popup), or KOReader's clock setting when none was made.
 function KoboldWidgets.clock24()
@@ -474,22 +509,37 @@ function KoboldWidgets.statusBarFrame(screen, margin, content_w, status_h)
         dimen = Geom:new{ x = margin, y = margin, w = content_w, h = status_h },
     }
 
-    -- Icon index -> action, in icon order. Required on tap: the popups use
-    -- these helpers themselves.
-    local actions = {
-        function() require("kobold.ui.brightness").show() end,
-        function() require("kobold.ui.wifi").show() end,
-        function() require("kobold.ui.battery_popup").show() end,
-        function() KoboldWidgets.openSearch(screen) end,
+    -- One tap zone per toolbar item, right-aligned like the icons. Built-in
+    -- items open their popup (the popups' arrows point at their icon);
+    -- custom actions run. Zones of items no longer shown are dropped.
+    local builtin = {
+        brightness = function() require("kobold.ui.brightness").show() end,
+        wifi = function() require("kobold.ui.wifi").show() end,
+        battery = function() require("kobold.ui.battery_popup").show() end,
+        search = function() KoboldWidgets.openSearch(screen) end,
     }
-    for i, action in ipairs(actions) do
-        local x, icon_w, icon_gap = statusIconX(margin, content_w, i)
-        -- Where the popups' arrows point.
-        require("kobold.ui.popup").setAnchor(({ "brightness", "wifi", "battery", "search" })[i],
-            math.floor(x + icon_w / 2))
-        KoboldTaps.add(screen, "KoboldStatusIcon" .. i, math.floor(x - icon_gap / 2), margin,
-            icon_w + icon_gap, status_h, action)
+    local items, _size, gap = toolbarItems()
+    local total = math.max(0, (#items - 1) * gap)
+    for _i, item in ipairs(items) do total = total + item.w end
+    local x = margin + content_w - total
+    for i, item in ipairs(items) do
+        local id = item.id
+        if builtin[id] then
+            require("kobold.ui.popup").setAnchor(id, math.floor(x + item.w / 2))
+        end
+        KoboldTaps.add(screen, "KoboldStatusIcon" .. i, math.floor(x - gap / 2), margin,
+            item.w + gap, status_h, builtin[id] or function()
+                require("kobold.data.bars").runCustom(id)
+            end)
+        x = x + item.w + gap
     end
+    local old = screen._kobold_toolbar_n or 0
+    for i = #items + 1, old do
+        if screen.unRegisterTouchZones then
+            screen:unRegisterTouchZones({ { id = "KoboldStatusIcon" .. i } })
+        end
+    end
+    screen._kobold_toolbar_n = #items
     require("kobold.ui.popup").setAnchor("clock", margin + math.floor(
         TextWidget:new{ text = KoboldWidgets.clockText(), face = KoboldWidgets.face(16) }:getSize().w / 2))
     -- The clock (left third of the bar): tap for the 12/24-hour popup.
@@ -529,6 +579,8 @@ function KoboldWidgets.startClock(screen)
         if inStack(screen) then
             clock.seen = true
             KoboldWidgets.refreshStatusBar(screen)
+            -- Screens with other live parts (Home's stats tokens) redraw them.
+            if screen.onKoboldMinute then screen:onKoboldMinute() end
         else
             -- Closed, or never shown: stop. A screen not shown yet gets
             -- one more minute.

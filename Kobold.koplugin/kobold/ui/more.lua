@@ -198,7 +198,7 @@ function KoboldMore:restartKobold()
         local ok, err = pcall(function()
             -- The repaint guard stays installed; this points it at the new code.
             require("kobold.ui.repaint_guard").install()
-            require("kobold.ui.router").show("home")
+            require("kobold.ui.router").show(require("kobold.data.bars").startTab())
         end)
         if not ok then
             UIManager:show(InfoMessage:new{ text = _("Kobold failed to restart.") .. "\n" .. tostring(err) })

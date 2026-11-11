@@ -1,8 +1,9 @@
 -- kobold/ui/settings.lua — Kobold
--- Kobold Settings, opened from the More tab: a full-screen page in the style
--- of the e-reader's own settings. "Settings" and a close button at the top,
--- the page heading, then sections of rows. Tapping a row opens its editor;
--- the page redraws with the new value afterwards.
+-- Kobold Settings, opened from the More tab: a panel in the style of the
+-- e-reader's own settings. "Settings" and a close button at the top, then
+-- the categories (Home widgets, My Books, ...); each opens its own page of
+-- rows on top. Tapping a row opens its editor; the page redraws with the
+-- new value afterwards.
 
 local Blitbuffer      = require("ffi/blitbuffer")
 local CenterContainer = require("ui/widget/container/centercontainer")
@@ -28,7 +29,6 @@ local KoboldPrefs     = require("kobold.data.prefs")
 local KoboldPopup     = require("kobold.ui.popup")
 local KoboldEditors   = require("kobold.ui.editors")
 local KoboldSettingsList = require("kobold.ui.settings_list")
-local KoboldStatsSettings = require("kobold.ui.stats_settings")
 local KoboldTaps      = require("kobold.ui.taps")
 local KoboldWidgets   = require("kobold.ui.widgets")
 
@@ -41,6 +41,9 @@ local KoboldSettings = InputContainer:extend{
     -- Not modal: its editors and the stats popup open on top of it.
     -- A panel over the screen it was opened from, not a full screen.
     name = "kobold_settings",
+    category = nil,  -- a category page (see CATEGORIES); nil for the main page
+    heading = nil,   -- the category page's title
+    parent = nil,    -- the main page, under a category page
 }
 
 -- Open Kobold screens redraw their status bar (the battery style changed).
@@ -63,156 +66,196 @@ local function prepareCovers()
     UIManager:show(InfoMessage:new{ text = text })
 end
 
+-- The settings, one page per category. The main page lists the categories;
+-- each opens its own page on top of it (see openCategory).
+local CATEGORIES = {
+    { id = "home",    title = _("Home widgets") },
+    { id = "mybooks", title = _("My Books") },
+    { id = "toolbar", title = _("Toolbar") },
+    { id = "nav",     title = _("Nav bar") },
+    { id = "custom",  title = _("Custom actions") },
+    { id = "look",    title = _("Look") },
+    { id = "covers",  title = _("Covers") },
+}
+
 function KoboldSettings:spec()
     local done = function() self:refresh() end
-    return {
-        { section = _("Home") },
-        {
-            title = _("Reading stats"),
-            desc = _("What the stats next to Continue Reading show, and what tapping them opens."),
-            value = _("Edit"), action = true,
-            on_tap = function() KoboldStatsSettings.show(self, done) end,
-        },
-        { section = _("My Books") },
-        {
-            title = _("Books per page"),
-            desc = _("Rows on lists with covers: Books, Series, and the books of an author, series or collection."),
-            value = tostring(KoboldPrefs.coverRows()),
-            on_tap = function()
-                KoboldEditors.number({
-                    title = _("Books per page"),
-                    value = KoboldPrefs.coverRows(),
-                    min = KoboldPrefs.COVER_ROWS_MIN,
-                    max = KoboldPrefs.COVER_ROWS_MAX,
-                    default = 5,
-                }, function(v) KoboldPrefs.set("cover_rows", v) end, done)
-            end,
-        },
-        {
-            title = _("Book menu"),
-            desc = _("What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."),
-            value = KoboldPrefs.get("book_menu") == "koreader" and _("KOReader") or _("Kobold"),
-            on_tap = function()
-                KoboldEditors.choose(_("Book menu"), {
-                    { id = "kobold", label = _("Kobold") },
-                    { id = "koreader", label = _("KOReader") },
-                }, KoboldPrefs.get("book_menu") == "koreader" and "koreader" or "kobold", function(id)
-                    KoboldPrefs.set("book_menu", id == "koreader" and "koreader" or nil)
-                end, done)
-            end,
-        },
-        {
-            title = _("Open books with"),
-            desc = _("How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."),
-            value = TAP_LABELS[KoboldPrefs.get("open_tap")] or TAP_LABELS.koreader,
-            on_tap = function()
-                KoboldEditors.choose(_("Open books with"), {
-                    { id = "koreader", label = TAP_LABELS.koreader },
-                    { id = "single", label = TAP_LABELS.single },
-                    { id = "double", label = TAP_LABELS.double },
-                }, KoboldPrefs.get("open_tap"), function(id)
-                    KoboldPrefs.set("open_tap", id ~= "koreader" and id or nil)
-                end, done)
-            end,
-        },
-        {
-            title = _("Opening and closing panel"),
-            desc = _("Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."),
-            value = KoboldPrefs.get("transition") == true and _("On") or _("Off"),
-            on_tap = function()
-                KoboldPrefs.set("transition", KoboldPrefs.get("transition") ~= true or nil)
-                done()
-            end,
-        },
-        {
-            title = _("Files tab"),
-            desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
-            value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
-            on_tap = function()
-                KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
-                done()
-            end,
-        },
-        { section = _("Look") },
-        {
-            title = _("Icons"),
-            desc = _("Kobold's own icons for the status bar and nav bar, or KOReader's default icons."),
-            value = KoboldPrefs.get("icons") == "koreader" and _("KOReader") or _("Kobold"),
-            on_tap = function()
-                KoboldEditors.choose(_("Icons"), {
-                    { id = "kobold", label = _("Kobold") },
-                    { id = "koreader", label = _("KOReader") },
-                }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
-                    KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
-                    UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
-                end, done)
-            end,
-        },
-        { section = _("Toolbar") },
-        {
-            title = _("Search"),
-            desc = _("What the search icon opens: Kobold's search page, or KOReader's file search."),
-            value = KoboldPrefs.get("search") == "koreader" and _("KOReader") or _("Kobold"),
-            on_tap = function()
-                KoboldEditors.choose(_("Search"), {
-                    { id = "kobold", label = _("Kobold") },
-                    { id = "koreader", label = _("KOReader") },
-                }, KoboldPrefs.get("search") == "koreader" and "koreader" or "kobold", function(id)
-                    KoboldPrefs.set("search", id == "koreader" and "koreader" or nil)
-                end, done)
-            end,
-        },
-        {
-            title = _("Light steps"),
-            desc = _("How much each - or + tap changes brightness and natural light, in percent."),
-            value = tostring(tonumber(KoboldPrefs.get("light_step")) or 1) .. "%",
-            on_tap = function()
-                KoboldEditors.number({
-                    title = _("Light steps"),
-                    value = tonumber(KoboldPrefs.get("light_step")) or 1,
-                    min = 1, max = 20, default = 1,
-                    info = _("Percent of the range per tap."),
-                }, function(v) KoboldPrefs.set("light_step", v ~= 1 and v or nil) end, done)
-            end,
-        },
-        { section = _("Status bar") },
-        {
-            title = _("Battery"),
-            desc = _("Show the charge as a fill inside the icon, or as a number."),
-            value = BATTERY_LABELS[KoboldPrefs.get("battery")] or BATTERY_LABELS.fill,
-            on_tap = function()
-                KoboldEditors.choose(_("Battery"), {
-                    { id = "fill", label = BATTERY_LABELS.fill },
-                    { id = "percent", label = BATTERY_LABELS.percent },
-                }, KoboldPrefs.get("battery"), function(id)
-                    KoboldPrefs.set("battery", id)
-                    broadcastChange()
-                end, done)
-            end,
-        },
-        { section = _("Covers") },
-        {
-            title = _("Prepare covers"),
-            desc = _("Read the cover of every book that has none yet, in the background. Can take several minutes."),
-            value = _("Start"), action = true,
-            on_tap = function()
-                KoboldEditors.confirm(_("Prepare covers for all books now?"), _("Start"), prepareCovers)
-            end,
-        },
-        { section = _("Reset") },
-        {
-            title = _("Reset to defaults"),
-            desc = _("Put every Kobold setting back as it was when first installed."),
-            value = _("Reset"), action = true,
-            on_tap = function()
-                KoboldEditors.confirm(_("Reset all Kobold settings?"), _("Reset"), function()
-                    KoboldPrefs.resetAll()
-                    broadcastChange()
-                    UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
-                end, done)
-            end,
-        },
+    if self.category == "home" then
+        return require("kobold.ui.home_widgets_settings").spec(self, done)
+    elseif self.category == "mybooks" then
+        return {
+            {
+                title = _("Books per page"),
+                desc = _("Rows on lists with covers: Books, Series, and the books of an author, series or collection."),
+                value = tostring(KoboldPrefs.coverRows()),
+                on_tap = function()
+                    KoboldEditors.number({
+                        title = _("Books per page"),
+                        value = KoboldPrefs.coverRows(),
+                        min = KoboldPrefs.COVER_ROWS_MIN,
+                        max = KoboldPrefs.COVER_ROWS_MAX,
+                        default = 5,
+                    }, function(v) KoboldPrefs.set("cover_rows", v) end, done)
+                end,
+            },
+            {
+                title = _("Book menu"),
+                desc = _("What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."),
+                value = KoboldPrefs.get("book_menu") == "koreader" and _("KOReader") or _("Kobold"),
+                on_tap = function()
+                    KoboldEditors.choose(_("Book menu"), {
+                        { id = "kobold", label = _("Kobold") },
+                        { id = "koreader", label = _("KOReader") },
+                    }, KoboldPrefs.get("book_menu") == "koreader" and "koreader" or "kobold", function(id)
+                        KoboldPrefs.set("book_menu", id == "koreader" and "koreader" or nil)
+                    end, done)
+                end,
+            },
+            {
+                title = _("Open books with"),
+                desc = _("How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."),
+                value = TAP_LABELS[KoboldPrefs.get("open_tap")] or TAP_LABELS.koreader,
+                on_tap = function()
+                    KoboldEditors.choose(_("Open books with"), {
+                        { id = "koreader", label = TAP_LABELS.koreader },
+                        { id = "single", label = TAP_LABELS.single },
+                        { id = "double", label = TAP_LABELS.double },
+                    }, KoboldPrefs.get("open_tap"), function(id)
+                        KoboldPrefs.set("open_tap", id ~= "koreader" and id or nil)
+                    end, done)
+                end,
+            },
+            {
+                title = _("Opening and closing panel"),
+                desc = _("Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."),
+                value = KoboldPrefs.get("transition") == true and _("On") or _("Off"),
+                on_tap = function()
+                    KoboldPrefs.set("transition", KoboldPrefs.get("transition") ~= true or nil)
+                    done()
+                end,
+            },
+            {
+                title = _("Files tab"),
+                desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
+                value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
+                on_tap = function()
+                    KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
+                    done()
+                end,
+            },
+        }
+    elseif self.category == "nav" then
+        return require("kobold.ui.bars_settings").itemRows("nav", done)
+    elseif self.category == "custom" then
+        return require("kobold.ui.bars_settings").customRows(done)
+    elseif self.category == "toolbar" then
+        -- The items, then the options of the built-in ones.
+        local spec = require("kobold.ui.bars_settings").itemRows("toolbar", done)
+        for _i, row in ipairs({
+            { section = _("Options") },
+            {
+                title = _("Search"),
+                desc = _("What the search icon opens: Kobold's search page, or KOReader's file search."),
+                value = KoboldPrefs.get("search") == "koreader" and _("KOReader") or _("Kobold"),
+                on_tap = function()
+                    KoboldEditors.choose(_("Search"), {
+                        { id = "kobold", label = _("Kobold") },
+                        { id = "koreader", label = _("KOReader") },
+                    }, KoboldPrefs.get("search") == "koreader" and "koreader" or "kobold", function(id)
+                        KoboldPrefs.set("search", id == "koreader" and "koreader" or nil)
+                    end, done)
+                end,
+            },
+            {
+                title = _("Light steps"),
+                desc = _("How much each - or + tap changes brightness and natural light, in percent."),
+                value = tostring(tonumber(KoboldPrefs.get("light_step")) or 1) .. "%",
+                on_tap = function()
+                    KoboldEditors.number({
+                        title = _("Light steps"),
+                        value = tonumber(KoboldPrefs.get("light_step")) or 1,
+                        min = 1, max = 20, default = 1,
+                        info = _("Percent of the range per tap."),
+                    }, function(v) KoboldPrefs.set("light_step", v ~= 1 and v or nil) end, done)
+                end,
+            },
+            { section = _("Status bar") },
+            {
+                title = _("Battery"),
+                desc = _("Show the charge as a fill inside the icon, or as a number."),
+                value = BATTERY_LABELS[KoboldPrefs.get("battery")] or BATTERY_LABELS.fill,
+                on_tap = function()
+                    KoboldEditors.choose(_("Battery"), {
+                        { id = "fill", label = BATTERY_LABELS.fill },
+                        { id = "percent", label = BATTERY_LABELS.percent },
+                    }, KoboldPrefs.get("battery"), function(id)
+                        KoboldPrefs.set("battery", id)
+                        broadcastChange()
+                    end, done)
+                end,
+            },
+        }) do spec[#spec + 1] = row end
+        return spec
+    elseif self.category == "look" then
+        return {
+            {
+                title = _("Icons"),
+                desc = _("Kobold's own icons for the status bar and nav bar, or KOReader's default icons."),
+                value = KoboldPrefs.get("icons") == "koreader" and _("KOReader") or _("Kobold"),
+                on_tap = function()
+                    KoboldEditors.choose(_("Icons"), {
+                        { id = "kobold", label = _("Kobold") },
+                        { id = "koreader", label = _("KOReader") },
+                    }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
+                        KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
+                        UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
+                    end, done)
+                end,
+            },
+        }
+    elseif self.category == "covers" then
+        return {
+            {
+                title = _("Prepare covers"),
+                desc = _("Read the cover of every book that has none yet, in the background. Can take several minutes."),
+                value = _("Start"), action = true,
+                on_tap = function()
+                    KoboldEditors.confirm(_("Prepare covers for all books now?"), _("Start"), prepareCovers)
+                end,
+            },
+        }
+    end
+
+    -- The main page: the categories, then Reset.
+    local spec = {}
+    for _i, c in ipairs(CATEGORIES) do
+        spec[#spec + 1] = {
+            -- No description: the whole row opens the page.
+            title = c.title, value = "›",
+            on_tap = function() self:openCategory(c) end,
+        }
+    end
+    spec[#spec + 1] = { section = "" }
+    spec[#spec + 1] = {
+        title = _("Reset to defaults"),
+        desc = _("Put every Kobold setting back as it was when first installed."),
+        value = _("Reset"), action = true,
+        on_tap = function()
+            KoboldEditors.confirm(_("Reset all Kobold settings?"), _("Reset"), function()
+                KoboldPrefs.resetAll()
+                broadcastChange()
+                UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
+            end, done)
+        end,
     }
+    return spec
+end
+
+-- Opens the page for category `c` over this one. Closing it comes back
+-- here, redrawn.
+function KoboldSettings:openCategory(c)
+    local page = KoboldSettings:new{ category = c.id, heading = c.title, parent = self }
+    UIManager:show(page, "ui", page.panel_rect)
 end
 
 -- The panel: a bordered box inset from the screen edges, like the
@@ -281,7 +324,7 @@ function KoboldSettings:build()
                 LeftContainer:new{ dimen = Geom:new{ w = inner_w, h = top_h }, page_label },
                 CenterContainer:new{
                     dimen = Geom:new{ w = inner_w, h = top_h },
-                    TextWidget:new{ text = _("Settings"), face = KoboldWidgets.face(18) },
+                    TextWidget:new{ text = self.heading or _("Settings"), face = KoboldWidgets.face(18) },
                 },
                 RightContainer:new{
                     dimen = Geom:new{ w = inner_w, h = top_h },
@@ -366,6 +409,12 @@ end
 -- the quick redraws of the rows and popups left behind.
 function KoboldSettings:onClose()
     self.closed = true
+    if self.parent then
+        -- A category page: back to the main page, which shows the new values.
+        UIManager:close(self, "ui", self.panel_rect)
+        self.parent:refresh()
+        return true
+    end
     if KoboldPrefs.revision() ~= self.start_revision then
         UIManager:close(self, "full")
     else

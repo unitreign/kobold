@@ -22,7 +22,7 @@ msgstr ""
 msgid "Closing Book"
 msgstr ""
 
-#: main.lua:218
+#: main.lua:219
 msgid "Kobold Home failed to open."
 msgstr ""
 
@@ -30,7 +30,7 @@ msgstr ""
 msgid "Remove from Home"
 msgstr ""
 
-#: kobold/l10n.lua:6 kobold/ui/collection_manage.lua:228 kobold/ui/collection_pick.lua:203 kobold/ui/search.lua:372 kobold/ui/settings.lua:268 kobold/ui/mybooks/rows.lua:405
+#: kobold/l10n.lua:6 kobold/ui/collection_manage.lua:228 kobold/ui/collection_pick.lua:203 kobold/ui/search.lua:372 kobold/ui/settings.lua:311 kobold/ui/mybooks/rows.lua:405
 #, lua-format
 msgid "Page %1 of %2"
 msgstr ""
@@ -105,18 +105,55 @@ msgstr ""
 msgid "Install"
 msgstr ""
 
-#: kobold/data/home.lua:236 kobold/data/home.lua:252 kobold/ui/home.lua:365
+#: kobold/data/bars.lua:19 kobold/ui/brightness.lua:39
+msgid "Brightness"
+msgstr ""
+
+#: kobold/data/bars.lua:20
+msgid "Wi-Fi"
+msgstr ""
+
+#: kobold/data/bars.lua:21 kobold/ui/battery_popup.lua:40 kobold/ui/settings.lua:184 kobold/ui/settings.lua:188
+msgid "Battery"
+msgstr ""
+
+#: kobold/data/bars.lua:22 kobold/ui/search.lua:171 kobold/ui/settings.lua:157 kobold/ui/settings.lua:161
+msgid "Search"
+msgstr ""
+
+#: kobold/data/bars.lua:25 kobold/ui/nav.lua:27
+msgid "Home"
+msgstr ""
+
+#: kobold/data/bars.lua:26 kobold/data/home.lua:284 kobold/ui/nav.lua:28 kobold/ui/search.lua:178 kobold/ui/settings.lua:73
+msgid "My Books"
+msgstr ""
+
+#: kobold/data/bars.lua:27 kobold/ui/more.lua:108 kobold/ui/nav.lua:29
+msgid "More"
+msgstr ""
+
+#: kobold/data/bars.lua:111
+#, lua-format
+msgid "%1 is not available. The plugin may be turned off."
+msgstr ""
+
+#: kobold/data/home.lua:251
+msgid "SERIES"
+msgstr ""
+
+#: kobold/data/home.lua:251 kobold/data/home.lua:305
+msgid "COLLECTION"
+msgstr ""
+
+#: kobold/data/home.lua:285 kobold/data/home.lua:296 kobold/data/home.lua:312
 #, lua-format
 msgid "%1 BOOK"
 msgid_plural "%1 BOOKS"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/home.lua:245
-msgid "COLLECTION"
-msgstr ""
-
-#: kobold/data/home.lua:251
+#: kobold/data/home.lua:311
 msgid "More Books"
 msgstr ""
 
@@ -138,100 +175,115 @@ msgstr ""
 msgid "%1 KB"
 msgstr ""
 
-#: kobold/data/settings.lua:12 kobold/ui/brightness.lua:159 kobold/ui/clock_popup.lua:49 kobold/ui/settings.lua:121 kobold/ui/settings.lua:130 kobold/ui/wifi.lua:72
+#: kobold/data/settings.lua:12 kobold/ui/brightness.lua:159 kobold/ui/clock_popup.lua:49 kobold/ui/settings.lua:131 kobold/ui/settings.lua:140 kobold/ui/wifi.lua:72
 msgid "On"
 msgstr ""
 
-#: kobold/data/settings.lua:12 kobold/ui/brightness.lua:159 kobold/ui/clock_popup.lua:49 kobold/ui/settings.lua:121 kobold/ui/settings.lua:130 kobold/ui/wifi.lua:72
+#: kobold/data/settings.lua:12 kobold/ui/brightness.lua:159 kobold/ui/clock_popup.lua:49 kobold/ui/settings.lua:131 kobold/ui/settings.lua:140 kobold/ui/wifi.lua:72
 msgid "Off"
 msgstr ""
 
-#: kobold/data/stats.lua:151
+#: kobold/data/stats.lua:157
 msgid "Total hours read"
 msgstr ""
 
-#: kobold/data/stats.lua:153
+#: kobold/data/stats.lua:159
 #, lua-format
 msgid "%1 hour read in total"
 msgid_plural "%1 hours read in total"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:155
+#: kobold/data/stats.lua:161
 msgid "Hours this week"
 msgstr ""
 
-#: kobold/data/stats.lua:158
+#: kobold/data/stats.lua:164
 msgid "Less than 1 hour this week"
 msgstr ""
 
-#: kobold/data/stats.lua:159
+#: kobold/data/stats.lua:165
 #, lua-format
 msgid "%1 hour this week"
 msgid_plural "%1 hours this week"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:161
+#: kobold/data/stats.lua:167
 msgid "Time read today"
 msgstr ""
 
-#: kobold/data/stats.lua:165
+#: kobold/data/stats.lua:171
 #, lua-format
 msgid "%1 minute today"
 msgid_plural "%1 minutes today"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:167
+#: kobold/data/stats.lua:173
 #, lua-format
 msgid "%1 hour today"
 msgid_plural "%1 hours today"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:169
+#: kobold/data/stats.lua:175
 msgid "Pages read today"
 msgstr ""
 
-#: kobold/data/stats.lua:171
+#: kobold/data/stats.lua:177
 #, lua-format
 msgid "%1 page today"
 msgid_plural "%1 pages today"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:173
+#: kobold/data/stats.lua:179
 msgid "Pages read this week"
 msgstr ""
 
-#: kobold/data/stats.lua:175
+#: kobold/data/stats.lua:181
 #, lua-format
 msgid "%1 page this week"
 msgid_plural "%1 pages this week"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:177
+#: kobold/data/stats.lua:183
 msgid "Reading streak"
 msgstr ""
 
-#: kobold/data/stats.lua:179
+#: kobold/data/stats.lua:185
 #, lua-format
 msgid "%1 day in a row"
 msgid_plural "%1 days in a row"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/data/stats.lua:181
+#: kobold/data/stats.lua:187
 msgid "Nothing"
+msgstr ""
+
+#: kobold/data/tokens.lua:20
+#, lua-format
+msgid "%1m"
+msgstr ""
+
+#: kobold/data/tokens.lua:21
+#, lua-format
+msgid "%1h %2m"
+msgstr ""
+
+#: kobold/data/tokens.lua:85
+#, lua-format
+msgid "Tokens show live values: %1"
 msgstr ""
 
 #: kobold/ui/about.lua:78
 msgid "About"
 msgstr ""
 
-#: kobold/ui/about.lua:96 kobold/ui/settings.lua:94 kobold/ui/settings.lua:97 kobold/ui/settings.lua:140 kobold/ui/settings.lua:143 kobold/ui/settings.lua:155 kobold/ui/settings.lua:158 _meta.lua:10
+#: kobold/ui/about.lua:96 kobold/ui/settings.lua:104 kobold/ui/settings.lua:107 kobold/ui/settings.lua:159 kobold/ui/settings.lua:162 kobold/ui/settings.lua:204 kobold/ui/settings.lua:207 _meta.lua:10
 msgid "Kobold"
 msgstr ""
 
@@ -282,8 +334,143 @@ msgstr ""
 msgid "The action failed: %1"
 msgstr ""
 
-#: kobold/ui/battery_popup.lua:40 kobold/ui/settings.lua:180 kobold/ui/settings.lua:184
-msgid "Battery"
+#: kobold/ui/bars_settings.lua:34
+msgid "Move up"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:35
+msgid "Move down"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:37 kobold/ui/mybooks/collections.lua:149
+msgid "Remove"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:56
+msgid "Items, in order"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:60
+msgid "Always shown"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:62
+msgid "Opens first"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:71
+msgid "Add an item"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:73
+msgid "Add to the nav bar"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:73
+msgid "Add to the toolbar"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:89
+msgid "Everything is already here. Make your own items in Custom actions."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:93
+#, lua-format
+msgid "Recommended: up to %1 items. More can look crowded."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:124 kobold/ui/bars_settings.lua:139
+msgid "Icon"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:125
+msgid "Kobold icons"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:126
+msgid "KOReader icons"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:127
+msgid "My own icons"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:137
+#, lua-format
+msgid "No icons yet. Put SVG or PNG files in %1 and try again."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:148
+msgid "Runs"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:149
+msgid "A KOReader action"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:150
+msgid "A plugin"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:159 kobold/ui/bars_settings.lua:179
+msgid "KOReader action"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:161 kobold/ui/editors.lua:136
+msgid "No KOReader actions were found."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:170 kobold/ui/bars_settings.lua:179
+msgid "Plugin"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:173
+msgid "No plugins with menu entries were found."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:185 kobold/ui/bars_settings.lua:212
+msgid "Name"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:185
+msgid "Shown under the icon in the nav bar."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:205 kobold/ui/mybooks/collections.lua:43
+msgid "Rename"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:206
+msgid "Change icon"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:207
+msgid "Change what it runs"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:208
+msgid "Run it now"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:209 kobold/ui/bars_settings.lua:230 kobold/ui/mybooks/collections.lua:44
+msgid "Delete"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:229
+#, lua-format
+msgid "Delete %1? It is also taken out of the toolbar and nav bar."
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:240
+msgid "Your actions"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:248
+msgid "New custom action"
+msgstr ""
+
+#: kobold/ui/bars_settings.lua:251
+msgid "Add them to the toolbar or nav bar from those pages."
 msgstr ""
 
 #: kobold/ui/battery_popup.lua:42
@@ -389,10 +576,6 @@ msgstr ""
 
 #: kobold/ui/book_menu.lua:80
 msgid "Show in Home"
-msgstr ""
-
-#: kobold/ui/brightness.lua:39
-msgid "Brightness"
 msgstr ""
 
 #: kobold/ui/brightness.lua:49
@@ -522,43 +705,108 @@ msgstr ""
 msgid "The collections could not be saved."
 msgstr ""
 
-#: kobold/ui/editors.lua:106
-msgid "No KOReader actions were found."
+#: kobold/ui/editors.lua:105
+msgid "Nothing to choose from."
 msgstr ""
 
-#: kobold/ui/home.lua:304
+#: kobold/ui/home.lua:333
 msgid "No stats yet"
 msgstr ""
 
-#: kobold/ui/home.lua:305
+#: kobold/ui/home.lua:334
 msgid "less than 1 hour to go"
 msgstr ""
 
-#: kobold/ui/home.lua:307
+#: kobold/ui/home.lua:336
 #, lua-format
 msgid "%1 hour to go"
 msgid_plural "%1 hours to go"
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/ui/home.lua:365 kobold/ui/nav.lua:28 kobold/ui/search.lua:178 kobold/ui/settings.lua:76
-msgid "My Books"
-msgstr ""
-
-#: kobold/ui/home.lua:413
+#: kobold/ui/home.lua:446
 msgid "No recent book"
 msgstr ""
 
-#: kobold/ui/home.lua:422
+#: kobold/ui/home.lua:453
 msgid "No reading stats"
 msgstr ""
 
-#: kobold/ui/home.lua:428 kobold/ui/stats_settings.lua:29
+#: kobold/ui/home.lua:459 kobold/ui/stats_settings.lua:33
 msgid "Reading Stats"
 msgstr ""
 
-#: kobold/ui/home.lua:430
+#: kobold/ui/home.lua:461 kobold/ui/stats_settings.lua:34
 msgid "Continue Reading"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:34
+#, lua-format
+msgid "%1 (%2)"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:40
+msgid "Choose a series"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:40
+msgid "Choose a collection"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:46
+msgid "No series found in your library."
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:46
+msgid "You have no collections with books yet."
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:54 kobold/ui/home_widgets_settings.lua:59 kobold/ui/stats_settings.lua:54 kobold/ui/stats_settings.lua:57 kobold/ui/stats_settings.lua:113 kobold/ui/stats_settings.lua:116
+msgid "Shows"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:61
+msgid "A series…"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:62
+msgid "A collection…"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:79
+msgid "My Books widget"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:80
+msgid "Latest books"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:81
+msgid "Collection widget"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:82
+msgid "A random collection"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:83 kobold/ui/stats_settings.lua:239
+msgid "Continue reading"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:85
+msgid "Title, tap action and label"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:86 kobold/ui/home_widgets_settings.lua:92
+msgid "Edit"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:89 kobold/ui/stats_settings.lua:239
+msgid "Reading stats"
+msgstr ""
+
+#: kobold/ui/home_widgets_settings.lua:91
+msgid "Lines, tap actions and label"
 msgstr ""
 
 #: kobold/ui/koreader_settings.lua:18
@@ -591,10 +839,6 @@ msgstr ""
 
 #: kobold/ui/more.lua:75
 msgid "Exit KOReader"
-msgstr ""
-
-#: kobold/ui/more.lua:108 kobold/ui/nav.lua:29
-msgid "More"
 msgstr ""
 
 #: kobold/ui/more.lua:162
@@ -705,10 +949,6 @@ msgstr ""
 msgid "The book menu is not available."
 msgstr ""
 
-#: kobold/ui/nav.lua:27 kobold/ui/settings.lua:69
-msgid "Home"
-msgstr ""
-
 #: kobold/ui/reader.lua:23
 msgid "Opening Book"
 msgstr ""
@@ -738,7 +978,7 @@ msgstr ""
 msgid "Information will be permanently lost."
 msgstr ""
 
-#: kobold/ui/reset_book.lua:135 kobold/ui/settings.lua:202 kobold/ui/settings.lua:206 kobold/ui/settings.lua:208 kobold/ui/stats_settings.lua:121 kobold/ui/stats_settings.lua:123
+#: kobold/ui/reset_book.lua:135 kobold/ui/settings.lua:242 kobold/ui/settings.lua:244 kobold/ui/stats_settings.lua:169 kobold/ui/stats_settings.lua:171 kobold/ui/stats_settings.lua:202 kobold/ui/stats_settings.lua:204
 msgid "Reset"
 msgstr ""
 
@@ -746,7 +986,7 @@ msgstr ""
 msgid "Relevance"
 msgstr ""
 
-#: kobold/ui/search.lua:42
+#: kobold/ui/search.lua:42 kobold/ui/stats_settings.lua:111
 msgid "Title"
 msgstr ""
 
@@ -765,10 +1005,6 @@ msgstr ""
 #: kobold/ui/search.lua:87
 #, lua-format
 msgid "%1% Read"
-msgstr ""
-
-#: kobold/ui/search.lua:171 kobold/ui/settings.lua:153 kobold/ui/settings.lua:157
-msgid "Search"
 msgstr ""
 
 #: kobold/ui/search.lua:190 kobold/ui/search_prompt.lua:49
@@ -808,223 +1044,255 @@ msgstr ""
 msgid "Double tap"
 msgstr ""
 
-#: kobold/ui/settings.lua:57
+#: kobold/ui/settings.lua:60
 msgid "Covers cannot be prepared right now. The cover browser is busy or not enabled."
 msgstr ""
 
-#: kobold/ui/settings.lua:59
+#: kobold/ui/settings.lua:62
 msgid "Every book already has its cover."
 msgstr ""
 
-#: kobold/ui/settings.lua:61
+#: kobold/ui/settings.lua:64
 #, lua-format
 msgid "Preparing %1 cover in the background."
 msgid_plural "Preparing %1 covers in the background."
 msgstr[0] ""
 msgstr[1] ""
 
-#: kobold/ui/settings.lua:71 kobold/ui/stats_settings.lua:158
-msgid "Reading stats"
-msgstr ""
-
 #: kobold/ui/settings.lua:72
-msgid "What the stats next to Continue Reading show, and what tapping them opens."
+msgid "Home widgets"
 msgstr ""
 
-#: kobold/ui/settings.lua:73
-msgid "Edit"
-msgstr ""
-
-#: kobold/ui/settings.lua:78 kobold/ui/settings.lua:83
-msgid "Books per page"
-msgstr ""
-
-#: kobold/ui/settings.lua:79
-msgid "Rows on lists with covers: Books, Series, and the books of an author, series or collection."
-msgstr ""
-
-#: kobold/ui/settings.lua:92 kobold/ui/settings.lua:96
-msgid "Book menu"
-msgstr ""
-
-#: kobold/ui/settings.lua:93
-msgid "What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."
-msgstr ""
-
-#: kobold/ui/settings.lua:94 kobold/ui/settings.lua:98 kobold/ui/settings.lua:140 kobold/ui/settings.lua:144 kobold/ui/settings.lua:155 kobold/ui/settings.lua:159
-msgid "KOReader"
-msgstr ""
-
-#: kobold/ui/settings.lua:105 kobold/ui/settings.lua:109
-msgid "Open books with"
-msgstr ""
-
-#: kobold/ui/settings.lua:106
-msgid "How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."
-msgstr ""
-
-#: kobold/ui/settings.lua:119
-msgid "Opening and closing panel"
-msgstr ""
-
-#: kobold/ui/settings.lua:120
-msgid "Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."
-msgstr ""
-
-#: kobold/ui/settings.lua:128
-msgid "Files tab"
-msgstr ""
-
-#: kobold/ui/settings.lua:129
-msgid "A file browser tab in My Books, starting in your home folder. Hold a folder for its options."
-msgstr ""
-
-#: kobold/ui/settings.lua:136
-msgid "Look"
-msgstr ""
-
-#: kobold/ui/settings.lua:138 kobold/ui/settings.lua:142
-msgid "Icons"
-msgstr ""
-
-#: kobold/ui/settings.lua:139
-msgid "Kobold's own icons for the status bar and nav bar, or KOReader's default icons."
-msgstr ""
-
-#: kobold/ui/settings.lua:151
+#: kobold/ui/settings.lua:74
 msgid "Toolbar"
 msgstr ""
 
-#: kobold/ui/settings.lua:154
-msgid "What the search icon opens: Kobold's search page, or KOReader's file search."
+#: kobold/ui/settings.lua:75
+msgid "Nav bar"
 msgstr ""
 
-#: kobold/ui/settings.lua:166 kobold/ui/settings.lua:171
-msgid "Light steps"
+#: kobold/ui/settings.lua:76
+msgid "Custom actions"
 msgstr ""
 
-#: kobold/ui/settings.lua:167
-msgid "How much each - or + tap changes brightness and natural light, in percent."
+#: kobold/ui/settings.lua:77
+msgid "Look"
 msgstr ""
 
-#: kobold/ui/settings.lua:174
-msgid "Percent of the range per tap."
-msgstr ""
-
-#: kobold/ui/settings.lua:178
-msgid "Status bar"
-msgstr ""
-
-#: kobold/ui/settings.lua:181
-msgid "Show the charge as a fill inside the icon, or as a number."
-msgstr ""
-
-#: kobold/ui/settings.lua:193
+#: kobold/ui/settings.lua:78
 msgid "Covers"
 msgstr ""
 
-#: kobold/ui/settings.lua:195
+#: kobold/ui/settings.lua:88 kobold/ui/settings.lua:93
+msgid "Books per page"
+msgstr ""
+
+#: kobold/ui/settings.lua:89
+msgid "Rows on lists with covers: Books, Series, and the books of an author, series or collection."
+msgstr ""
+
+#: kobold/ui/settings.lua:102 kobold/ui/settings.lua:106
+msgid "Book menu"
+msgstr ""
+
+#: kobold/ui/settings.lua:103
+msgid "What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."
+msgstr ""
+
+#: kobold/ui/settings.lua:104 kobold/ui/settings.lua:108 kobold/ui/settings.lua:159 kobold/ui/settings.lua:163 kobold/ui/settings.lua:204 kobold/ui/settings.lua:208
+msgid "KOReader"
+msgstr ""
+
+#: kobold/ui/settings.lua:115 kobold/ui/settings.lua:119
+msgid "Open books with"
+msgstr ""
+
+#: kobold/ui/settings.lua:116
+msgid "How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."
+msgstr ""
+
+#: kobold/ui/settings.lua:129
+msgid "Opening and closing panel"
+msgstr ""
+
+#: kobold/ui/settings.lua:130
+msgid "Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."
+msgstr ""
+
+#: kobold/ui/settings.lua:138
+msgid "Files tab"
+msgstr ""
+
+#: kobold/ui/settings.lua:139
+msgid "A file browser tab in My Books, starting in your home folder. Hold a folder for its options."
+msgstr ""
+
+#: kobold/ui/settings.lua:155
+msgid "Options"
+msgstr ""
+
+#: kobold/ui/settings.lua:158
+msgid "What the search icon opens: Kobold's search page, or KOReader's file search."
+msgstr ""
+
+#: kobold/ui/settings.lua:170 kobold/ui/settings.lua:175
+msgid "Light steps"
+msgstr ""
+
+#: kobold/ui/settings.lua:171
+msgid "How much each - or + tap changes brightness and natural light, in percent."
+msgstr ""
+
+#: kobold/ui/settings.lua:178
+msgid "Percent of the range per tap."
+msgstr ""
+
+#: kobold/ui/settings.lua:182
+msgid "Status bar"
+msgstr ""
+
+#: kobold/ui/settings.lua:185
+msgid "Show the charge as a fill inside the icon, or as a number."
+msgstr ""
+
+#: kobold/ui/settings.lua:202 kobold/ui/settings.lua:206
+msgid "Icons"
+msgstr ""
+
+#: kobold/ui/settings.lua:203
+msgid "Kobold's own icons for the status bar and nav bar, or KOReader's default icons."
+msgstr ""
+
+#: kobold/ui/settings.lua:219
 msgid "Prepare covers"
 msgstr ""
 
-#: kobold/ui/settings.lua:196
+#: kobold/ui/settings.lua:220
 msgid "Read the cover of every book that has none yet, in the background. Can take several minutes."
 msgstr ""
 
-#: kobold/ui/settings.lua:197 kobold/ui/settings.lua:199
+#: kobold/ui/settings.lua:221 kobold/ui/settings.lua:223
 msgid "Start"
 msgstr ""
 
-#: kobold/ui/settings.lua:199
+#: kobold/ui/settings.lua:223
 msgid "Prepare covers for all books now?"
 msgstr ""
 
-#: kobold/ui/settings.lua:204
+#: kobold/ui/settings.lua:240
 msgid "Reset to defaults"
 msgstr ""
 
-#: kobold/ui/settings.lua:205
+#: kobold/ui/settings.lua:241
 msgid "Put every Kobold setting back as it was when first installed."
 msgstr ""
 
-#: kobold/ui/settings.lua:208
+#: kobold/ui/settings.lua:244
 msgid "Reset all Kobold settings?"
 msgstr ""
 
-#: kobold/ui/settings.lua:284
+#: kobold/ui/settings.lua:327
 msgid "Settings"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:48 kobold/ui/stats_settings.lua:51
-msgid "Shows"
-msgstr ""
-
-#: kobold/ui/stats_settings.lua:49 kobold/ui/stats_settings.lua:53
+#: kobold/ui/stats_settings.lua:55 kobold/ui/stats_settings.lua:59 kobold/ui/stats_settings.lua:114 kobold/ui/stats_settings.lua:118
 msgid "Custom text"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:49 kobold/ui/stats_settings.lua:52
+#: kobold/ui/stats_settings.lua:55 kobold/ui/stats_settings.lua:58
 msgid "A reading stat"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:63
+#: kobold/ui/stats_settings.lua:69 kobold/ui/stats_settings.lua:127
 msgid "Text"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:64
+#: kobold/ui/stats_settings.lua:70 kobold/ui/stats_settings.lua:128
 msgid "(empty)"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:66
+#: kobold/ui/stats_settings.lua:72
 msgid "Line text"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:73 kobold/ui/stats_settings.lua:80
+#: kobold/ui/stats_settings.lua:79 kobold/ui/stats_settings.lua:86
 msgid "Stat"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:87 kobold/ui/stats_settings.lua:90
+#: kobold/ui/stats_settings.lua:93 kobold/ui/stats_settings.lua:96 kobold/ui/stats_settings.lua:136 kobold/ui/stats_settings.lua:139 kobold/ui/stats_settings.lua:147
 msgid "Tap action"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:101
-msgid "First line"
+#: kobold/ui/stats_settings.lua:114 kobold/ui/stats_settings.lua:117
+msgid "The book title"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:102
-msgid "Second line, when the book title takes two lines"
+#: kobold/ui/stats_settings.lua:130
+msgid "Title text"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:104 kobold/ui/stats_settings.lua:109
+#: kobold/ui/stats_settings.lua:137 kobold/ui/stats_settings.lua:140
+msgid "Open the book"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:141
+msgid "A KOReader action…"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:153 kobold/ui/stats_settings.lua:158 kobold/ui/stats_settings.lua:185 kobold/ui/stats_settings.lua:190
 msgid "Label"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:106
-msgid "Text under the stats"
+#: kobold/ui/stats_settings.lua:155
+msgid "Text under the title"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:109
+#: kobold/ui/stats_settings.lua:158 kobold/ui/stats_settings.lua:190
 msgid "Leave empty for the default."
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:119
+#: kobold/ui/stats_settings.lua:167
+msgid "Reset continue reading"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:168
+msgid "Put the title, tap action and label back to the defaults."
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:171
+msgid "Reset the continue reading settings?"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:182
+msgid "First line"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:183
+msgid "Second line, when the book title takes two lines"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:187
+msgid "Text under the stats"
+msgstr ""
+
+#: kobold/ui/stats_settings.lua:200
 msgid "Reset reading stats"
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:120
+#: kobold/ui/stats_settings.lua:201
 msgid "Put both lines, their actions and the label back to the defaults."
 msgstr ""
 
-#: kobold/ui/stats_settings.lua:123
+#: kobold/ui/stats_settings.lua:204
 msgid "Reset the reading stats settings?"
 msgstr ""
 
-#: kobold/ui/widgets.lua:590
+#: kobold/ui/widgets.lua:643
 #, lua-format
 msgid "Screenshot failed: %1"
 msgstr ""
 
-#: kobold/ui/widgets.lua:614
+#: kobold/ui/widgets.lua:667
 msgid "File search is not available."
 msgstr ""
 
@@ -1064,14 +1332,6 @@ msgstr ""
 msgid "Manage"
 msgstr ""
 
-#: kobold/ui/mybooks/collections.lua:43
-msgid "Rename"
-msgstr ""
-
-#: kobold/ui/mybooks/collections.lua:44
-msgid "Delete"
-msgstr ""
-
 #: kobold/ui/mybooks/collections.lua:67
 msgid "KOReader's collections are not available."
 msgstr ""
@@ -1090,10 +1350,6 @@ msgstr ""
 
 #: kobold/ui/mybooks/collections.lua:148
 msgid "The books stay in your library."
-msgstr ""
-
-#: kobold/ui/mybooks/collections.lua:149
-msgid "Remove"
 msgstr ""
 
 #: kobold/ui/mybooks/collections.lua:213

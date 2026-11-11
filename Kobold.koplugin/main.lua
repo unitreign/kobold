@@ -190,10 +190,12 @@ function Kobold:addToMainMenu(menu_items)
     }
 end
 
--- Opens Kobold Home. Errors are caught and shown as a message so a broken
--- screen can't crash KOReader (the menu path and the boot path both use this).
+-- Opens Kobold on its start tab. Errors are caught and shown as a message so
+-- a broken screen can't crash KOReader (the menu path and the boot path both
+-- use this).
 function Kobold:showHome()
-    return self:showTab("home")
+    -- The first screen tab in the nav bar (Kobold Settings > Nav bar).
+    return self:showTab(require("kobold.data.bars").startTab())
 end
 
 -- Opens the Kobold screen for `tab` ("home", "books" or "more"), with an
