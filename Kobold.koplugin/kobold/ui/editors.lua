@@ -1,15 +1,12 @@
 -- kobold/ui/editors.lua — Kobold
 -- Small editors used by Kobold's settings: pick one of a few choices, pick
 -- from a long list or a grid of icons, pick a number, type a text, pick a
--- KOReader action, confirm. Choosing and confirming use Kobold's own popups
--- (picker.lua); numbers and text use KOReader's (they need its keyboard and
--- spinner). Each calls `done`
+-- KOReader action, confirm. All in Kobold's own popups (picker.lua,
+-- prompts.lua). Each calls `done`
 -- once it closes (saved or not), so the caller can redraw its values.
 
 local Device       = require("device")
-local InfoMessage  = require("ui/widget/infomessage")
-local InputDialog  = require("ui/widget/inputdialog")
-local SpinWidget   = require("ui/widget/spinwidget")
+local InfoMessage  = require("kobold.ui.prompts").Notice
 local UIManager    = require("ui/uimanager")
 local _            = require("kobold.l10n")
 local KoboldActions = require("kobold.ui.actions")
@@ -29,54 +26,31 @@ function KoboldEditors.choose(title, choices, current, on_pick, done)
     end, function() call(done) end)
 end
 
--- A number between min and max.
+-- A number between min and max, with - and + (prompts.lua).
 function KoboldEditors.number(opts, on_set, done)
-    UIManager:show(SpinWidget:new{
-        title_text = opts.title,
-        info_text = opts.info,
-        value = opts.value,
-        value_min = opts.min,
-        value_max = opts.max,
-        value_step = 1,
-        default_value = opts.default,
-        callback = function(spin)
-            on_set(spin.value)
+    require("kobold.ui.prompts").number{
+        title = opts.title, info = opts.info,
+        value = opts.value, min = opts.min, max = opts.max, default = opts.default,
+        on_set = function(v)
+            on_set(v)
             call(done)
         end,
-        cancel_callback = function() call(done) end,
-    })
+        on_cancel = function() call(done) end,
+    }
 end
 
--- A line of text. on_save gets the trimmed text.
-function KoboldEditors.text(title, description, current, on_save, done)
-    local dialog
-    dialog = InputDialog:new{
-        title = title,
-        description = description,
-        input = current or "",
-        buttons = {{
-            {
-                text = _("Cancel"),
-                id = "close",
-                callback = function()
-                    UIManager:close(dialog)
-                    call(done)
-                end,
-            },
-            {
-                text = _("Save"),
-                is_enter_default = true,
-                callback = function()
-                    local text = dialog:getInputText():match("^%s*(.-)%s*$")
-                    UIManager:close(dialog)
-                    on_save(text)
-                    call(done)
-                end,
-            },
-        }},
+-- A line of text, typed with the keyboard (prompts.lua). on_save gets the
+-- trimmed text. `notice`, when given, is a small note under the field.
+function KoboldEditors.text(title, description, current, on_save, done, notice)
+    require("kobold.ui.prompts").text{
+        title = title, description = description, notice = notice,
+        text = current or "",
+        on_ok = function(text)
+            on_save(text)
+            call(done)
+        end,
+        on_cancel = function() call(done) end,
     }
-    UIManager:show(dialog)
-    dialog:onShowKeyboard()
 end
 
 -- A long list to pick one from, in pages (picker.lua): `choices` =

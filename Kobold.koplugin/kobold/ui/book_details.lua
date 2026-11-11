@@ -272,7 +272,7 @@ function KoboldBookDetails:init()
                 if self.on_change then self.on_change() end
                 self:refresh()
             end) then
-                UIManager:show(require("ui/widget/infomessage"):new{
+                UIManager:show(require("kobold.ui.prompts").Notice:new{
                     text = _("The KOReader book menu is not available."),
                 })
             end

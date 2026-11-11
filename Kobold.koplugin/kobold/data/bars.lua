@@ -107,7 +107,7 @@ function KoboldBars.runCustom(id)
     local ok = require("kobold.data.plugins").run(c.module, c.entry)
     if not ok then
         local UIManager = require("ui/uimanager")
-        UIManager:show(require("ui/widget/infomessage"):new{
+        UIManager:show(require("kobold.ui.prompts").Notice:new{
             text = _.T(_("%1 is not available. The plugin may be turned off."), c.name or ""),
         })
     end

@@ -15,7 +15,7 @@ local KoboldBookMenu = {}
 
 local function showKOReaderMenu(file, on_change)
     if not KoboldWidgets.showBookMenu(file, on_change) then
-        UIManager:show(require("ui/widget/infomessage"):new{
+        UIManager:show(require("kobold.ui.prompts").Notice:new{
             text = _("The KOReader book menu is not available."),
         })
     end

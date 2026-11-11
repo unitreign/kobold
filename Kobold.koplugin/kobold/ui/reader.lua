@@ -1,7 +1,7 @@
 -- kobold/ui/reader.lua — Kobold
 -- Opens a book from a Kobold screen.
 
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local UIManager       = require("ui/uimanager")
 local _               = require("kobold.l10n")
 local KoboldSession   = require("kobold.ui.session")

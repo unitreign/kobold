@@ -4,7 +4,7 @@
 -- picker, and running one by id.
 
 local Event           = require("ui/event")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local UIManager       = require("ui/uimanager")
 local _               = require("kobold.l10n")
 

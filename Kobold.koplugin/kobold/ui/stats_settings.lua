@@ -71,7 +71,7 @@ function KoboldStatsSettings:lineRows(pref, section)
             on_tap = function()
                 KoboldEditors.text(_("Line text"), require("kobold.data.tokens").help(), text,
                     function(t) KoboldPrefs.set(pref .. "_text", t) end,
-                    function() self:refresh() end)
+                    function() self:refresh() end, _("Tokens such as [time] or [streak] can make Home load a little slower."))
             end,
         }
     else
@@ -128,7 +128,7 @@ function KoboldStatsSettings:continueSpec()
             value = text ~= "" and text or _("(empty)"),
             on_tap = function()
                 KoboldEditors.text(_("Title text"), require("kobold.data.tokens").help(), text,
-                    function(t) KoboldPrefs.set("continue_text", t) end, refresh)
+                    function(t) KoboldPrefs.set("continue_text", t) end, refresh, _("Tokens such as [time] or [streak] can make Home load a little slower."))
             end,
         }
     end
@@ -282,8 +282,7 @@ function KoboldStatsSettings:onTapStats(_, ges)
         self:onClose()
         return true
     end
-    local on_tap = KoboldSettingsList.hit(self.hits, ges.pos)
-    if on_tap then on_tap() end
+    KoboldSettingsList.pressTap(self, self.hits, ges.pos)
     return true
 end
 

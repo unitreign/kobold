@@ -5,8 +5,7 @@
 -- Adds methods to the My Books screen class (see mybooks.lua, which
 -- installs this with the values it shares).
 
-local InfoMessage       = require("ui/widget/infomessage")
-local InputDialog       = require("ui/widget/inputdialog")
+local InfoMessage       = require("kobold.ui.prompts").Notice
 local UIManager         = require("ui/uimanager")
 local _                 = require("kobold.l10n")
 local KoboldPrefs       = require("kobold.data.prefs")
@@ -66,77 +65,33 @@ return function(KoboldMyBooks, shared)
             UIManager:show(InfoMessage:new{ text = _("KOReader's collections are not available.") })
             return
         end
-        local dialog
-        dialog = InputDialog:new{
+        require("kobold.ui.prompts").text{
             title = _("Create new collection"),
-            input_hint = _("Collection name"),
-            buttons = {{
-                {
-                    text = _("Cancel"),
-                    id = "close",
-                    callback = function() UIManager:close(dialog) end,
-                },
-                {
-                    text = _("Next"),
-                    is_enter_default = true,
-                    callback = function()
-                        local name = (dialog:getInputText() or ""):match("^%s*(.-)%s*$")
-                        if name == "" then return end
-                        if RC.coll[name] then
-                            UIManager:show(InfoMessage:new{
-                                text = _("A collection with that name already exists."),
-                                timeout = 3,
-                            })
-                            return
-                        end
-                        UIManager:close(dialog)
-                        self:manageCollection(name, true)
-                    end,
-                },
-            }},
+            hint = _("Collection name"),
+            ok_text = _("Next"),
+            on_ok = function(name)
+                if name == "" then return _("Type a name for the collection.") end
+                if RC.coll[name] then return _("A collection with that name already exists.") end
+                self:manageCollection(name, true)
+            end,
         }
-        UIManager:show(dialog)
-        dialog:onShowKeyboard()
     end
 
     function KoboldMyBooks:renameCollection(group)
         local RC = readCollection()
         if not RC then return end
         local old = group.key
-        local dialog
-        dialog = InputDialog:new{
+        require("kobold.ui.prompts").text{
             title = _("Rename collection"),
-            input = old,
-            input_hint = old,
-            buttons = {{
-                {
-                    text = _("Cancel"),
-                    id = "close",
-                    callback = function() UIManager:close(dialog) end,
-                },
-                {
-                    text = _("Save"),
-                    is_enter_default = true,
-                    callback = function()
-                        local new = (dialog:getInputText() or ""):match("^%s*(.-)%s*$")
-                        if new == "" or new == old then return end
-                        if RC.coll[new] then
-                            UIManager:show(InfoMessage:new{
-                                text = _("A collection with that name already exists."),
-                                timeout = 3,
-                            })
-                            return
-                        end
-                        UIManager:close(dialog)
-                        RC:renameCollection(old, new)
-                        saveCollections(RC, nil)  -- also drops the old name from the file
-                        self:scheduleReload()
-                    end,
-                },
-            }},
+            text = old, hint = old,
+            on_ok = function(new)
+                if new == "" or new == old then return nil end
+                if RC.coll[new] then return _("A collection with that name already exists.") end
+                RC:renameCollection(old, new)
+                saveCollections(RC, nil)  -- also drops the old name from the file
+                self:scheduleReload()
+            end,
         }
-        UIManager:show(dialog)
-        dialog:onShowKeyboard()
     end
 
     function KoboldMyBooks:confirmRemoveCollection(group)

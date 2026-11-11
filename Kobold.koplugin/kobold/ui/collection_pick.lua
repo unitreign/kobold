@@ -14,9 +14,8 @@ local Geom            = require("ui/geometry")
 local GestureRange    = require("ui/gesturerange")
 local HorizontalGroup = require("ui/widget/horizontalgroup")
 local HorizontalSpan  = require("ui/widget/horizontalspan")
-local InfoMessage     = require("ui/widget/infomessage")
+local InfoMessage     = require("kobold.ui.prompts").Notice
 local InputContainer  = require("ui/widget/container/inputcontainer")
-local InputDialog     = require("ui/widget/inputdialog")
 local LeftContainer   = require("ui/widget/container/leftcontainer")
 local LineWidget      = require("ui/widget/linewidget")
 local OverlapGroup    = require("ui/widget/overlapgroup")
@@ -245,31 +244,23 @@ end
 -- A new collection, ticked for this book; created on Save.
 function KoboldCollectionPick:newCollection()
     local RC = readCollection()
-    local dialog
-    dialog = InputDialog:new{
+    require("kobold.ui.prompts").text{
         title = _("Create new collection"),
-        input_hint = _("Collection name"),
-        buttons = {{
-            { text = _("Cancel"), id = "close", callback = function() UIManager:close(dialog) end },
-            { text = _("Create"), is_enter_default = true, callback = function()
-                local name = (dialog:getInputText() or ""):match("^%s*(.-)%s*$")
-                if name == "" then return end
-                if (RC and RC.coll[name]) or self.new_names[name] then
-                    UIManager:show(InfoMessage:new{ text = _("A collection with that name already exists."), timeout = 3 })
-                    return
-                end
-                UIManager:close(dialog)
-                self.new_names[name] = true
-                self.names[#self.names + 1] = name
-                self.counts[name] = 0
-                self.member[name] = true
-                self:sortNames()
-                self:refresh()
-            end },
-        }},
+        hint = _("Collection name"),
+        ok_text = _("Create"),
+        on_ok = function(name)
+            if name == "" then return _("Type a name for the collection.") end
+            if (RC and RC.coll[name]) or self.new_names[name] then
+                return _("A collection with that name already exists.")
+            end
+            self.new_names[name] = true
+            self.names[#self.names + 1] = name
+            self.counts[name] = 0
+            self.member[name] = true
+            self:sortNames()
+            self:refresh()
+        end,
     }
-    UIManager:show(dialog)
-    dialog:onShowKeyboard()
 end
 
 -- Puts the book in exactly the ticked collections and saves.

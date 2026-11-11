@@ -7,7 +7,7 @@
 -- Based on the Mythos updater.
 
 local DataStorage = require("datastorage")
-local InfoMessage = require("ui/widget/infomessage")
+local InfoMessage = require("kobold.ui.prompts").Notice
 local UIManager   = require("ui/uimanager")
 local lfs         = require("libs/libkoreader-lfs")
 local logger      = require("logger")
