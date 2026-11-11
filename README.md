@@ -22,6 +22,10 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 
 <div align="center">
 
+<img src="screenshots/home-2.0.png" width="420" />
+
+*Kobold 2.0: your own toolbar and nav bar, with custom actions and live stats on Home*
+
 | Home | My Books |
 |:---:|:---:|
 | <img src="screenshots/home.png" width="280" /> | <img src="screenshots/allbooks.png" width="280" /> |
@@ -41,8 +45,12 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 - **Search** your books by title, author or series, with recent searches
 - **Book menu and details page** with Read now, View Details, Add to collection, and the cover, synopsis and file details
 - **Your reading row** on Home, remove books from it or bring older ones back with Show in Home
-- **Quick settings** for brightness, warmth, Wi-Fi and battery from the status bar
-- **Customisable reading stats** on the home screen, with your own text and tap actions
+- **Quick settings** from the status bar, in the stock reader's style: brightness and natural light (with auto warmth), Wi-Fi, battery with time left, and a clock popup with the date and auto-sleep
+- **Your own toolbar and nav bar**: add, remove and reorder items, and make custom actions with your own icon that run any KOReader action or plugin
+- **Home widgets** you can set up: show a series or collection of your choice, change what Continue Reading and the reading stats say and do
+- **Live text** on Home with tokens like `[time]`, `[streak]` or `[battery]`
+- **Book actions** right from Kobold: mark as finished or unread, reset a book
+- **Translatable**, with a template ready for other languages
 - **Fast**, with covers and book info cached so screens open quickly
 
 ## Planned
@@ -53,7 +61,7 @@ Kobold is a [KOReader](https://github.com/koreader/koreader) plugin that gives y
 
 ### Later
 
-- **Custom status bar and nav bar**, add, remove, hide and reorder items, with your own icons, and add your own buttons that run KOReader actions
+- **More languages** for Kobold's own text
 
 ## Requirements
 
