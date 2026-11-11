@@ -69,13 +69,12 @@ end
 -- The settings, one page per category. The main page lists the categories;
 -- each opens its own page on top of it (see openCategory).
 local CATEGORIES = {
-    { id = "home",    title = _("Home widgets") },
-    { id = "mybooks", title = _("My Books") },
-    { id = "toolbar", title = _("Toolbar") },
-    { id = "nav",     title = _("Nav bar") },
-    { id = "custom",  title = _("Custom actions") },
-    { id = "look",    title = _("Look") },
-    { id = "covers",  title = _("Covers") },
+    { id = "home",    title = _("Home"),           section = _("Screens") },
+    { id = "mybooks", title = _("My Books"),       section = _("Screens") },
+    { id = "toolbar", title = _("Toolbar"),        section = _("Bars") },
+    { id = "nav",     title = _("Nav bar"),        section = _("Bars") },
+    { id = "custom",  title = _("Custom actions"), section = _("Bars") },
+    { id = "opening", title = _("Opening books"),  section = _("Books") },
 }
 
 function KoboldSettings:spec()
@@ -99,18 +98,17 @@ function KoboldSettings:spec()
                 end,
             },
             {
-                title = _("Book menu"),
-                desc = _("What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."),
-                value = KoboldPrefs.get("book_menu") == "koreader" and _("KOReader") or _("Kobold"),
+                title = _("Files tab"),
+                desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
+                value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
                 on_tap = function()
-                    KoboldEditors.choose(_("Book menu"), {
-                        { id = "kobold", label = _("Kobold") },
-                        { id = "koreader", label = _("KOReader") },
-                    }, KoboldPrefs.get("book_menu") == "koreader" and "koreader" or "kobold", function(id)
-                        KoboldPrefs.set("book_menu", id == "koreader" and "koreader" or nil)
-                    end, done)
+                    KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
+                    done()
                 end,
             },
+        }
+    elseif self.category == "opening" then
+        return {
             {
                 title = _("Open books with"),
                 desc = _("How many taps open a book. KOReader default follows the browser double tap patch when it is installed, otherwise a single tap."),
@@ -126,20 +124,24 @@ function KoboldSettings:spec()
                 end,
             },
             {
+                title = _("Book menu"),
+                desc = _("What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."),
+                value = KoboldPrefs.get("book_menu") == "koreader" and _("KOReader") or _("Kobold"),
+                on_tap = function()
+                    KoboldEditors.choose(_("Book menu"), {
+                        { id = "kobold", label = _("Kobold") },
+                        { id = "koreader", label = _("KOReader") },
+                    }, KoboldPrefs.get("book_menu") == "koreader" and "koreader" or "kobold", function(id)
+                        KoboldPrefs.set("book_menu", id == "koreader" and "koreader" or nil)
+                    end, done)
+                end,
+            },
+            {
                 title = _("Opening and closing panel"),
                 desc = _("Kobold's own \"Opening Book\" and \"Closing Book\" panel instead of KOReader's messages. Off: the same as KOReader."),
                 value = KoboldPrefs.get("transition") == true and _("On") or _("Off"),
                 on_tap = function()
                     KoboldPrefs.set("transition", KoboldPrefs.get("transition") ~= true or nil)
-                    done()
-                end,
-            },
-            {
-                title = _("Files tab"),
-                desc = _("A file browser tab in My Books, starting in your home folder. Hold a folder for its options."),
-                value = KoboldPrefs.get("files_tab") and _("On") or _("Off"),
-                on_tap = function()
-                    KoboldPrefs.set("files_tab", not KoboldPrefs.get("files_tab") or nil)
                     done()
                 end,
             },
@@ -196,46 +198,45 @@ function KoboldSettings:spec()
             },
         }) do spec[#spec + 1] = row end
         return spec
-    elseif self.category == "look" then
-        return {
-            {
-                title = _("Icons"),
-                desc = _("Kobold's own icons for the status bar and nav bar, or KOReader's default icons."),
-                value = KoboldPrefs.get("icons") == "koreader" and _("KOReader") or _("Kobold"),
-                on_tap = function()
-                    KoboldEditors.choose(_("Icons"), {
-                        { id = "kobold", label = _("Kobold") },
-                        { id = "koreader", label = _("KOReader") },
-                    }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
-                        KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
-                        UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
-                    end, done)
-                end,
-            },
-        }
-    elseif self.category == "covers" then
-        return {
-            {
-                title = _("Prepare covers"),
-                desc = _("Read the cover of every book that has none yet, in the background. Can take several minutes."),
-                value = _("Start"), action = true,
-                on_tap = function()
-                    KoboldEditors.confirm(_("Prepare covers for all books now?"), _("Start"), prepareCovers)
-                end,
-            },
-        }
     end
 
-    -- The main page: the categories, then Reset.
-    local spec = {}
+    -- The main page: the categories under their section bands, then the few
+    -- settings that are not about one place (General).
+    local spec, section = {}, nil
     for _i, c in ipairs(CATEGORIES) do
+        if c.section ~= section then
+            section = c.section
+            spec[#spec + 1] = { section = section }
+        end
         spec[#spec + 1] = {
             -- No description: the whole row opens the page.
             title = c.title, value = "›",
             on_tap = function() self:openCategory(c) end,
         }
     end
-    spec[#spec + 1] = { section = "" }
+    spec[#spec + 1] = { section = _("General") }
+    spec[#spec + 1] = {
+        title = _("Icons"),
+        desc = _("Kobold's own icons for the status bar and nav bar, or KOReader's default icons."),
+        value = KoboldPrefs.get("icons") == "koreader" and _("KOReader") or _("Kobold"),
+        on_tap = function()
+            KoboldEditors.choose(_("Icons"), {
+                { id = "kobold", label = _("Kobold") },
+                { id = "koreader", label = _("KOReader") },
+            }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
+                KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
+                UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
+            end, done)
+        end,
+    }
+    spec[#spec + 1] = {
+        title = _("Prepare covers"),
+        desc = _("Read the cover of every book that has none yet, in the background. Can take several minutes."),
+        value = _("Start"), action = true,
+        on_tap = function()
+            KoboldEditors.confirm(_("Prepare covers for all books now?"), _("Start"), prepareCovers)
+        end,
+    }
     spec[#spec + 1] = {
         title = _("Reset to defaults"),
         desc = _("Put every Kobold setting back as it was when first installed."),

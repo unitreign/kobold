@@ -57,10 +57,14 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
     local band_h   = Screen:scaleBySize(26)
     local band_pad = Screen:scaleBySize(10)
     local row_pad  = Screen:scaleBySize(9)
+    -- Rows (and the lines between them) are inset from both sides, so the
+    -- grey section bands run wider and read as titles.
+    local inset    = Screen:scaleBySize(10)
     local gap      = Screen:scaleBySize(16)
     local line_h   = Screen:scaleBySize(1)
-    local value_w  = math.floor(w * (opts.value_ratio or 0.38))
-    local text_w   = w - value_w - gap
+    local row_w    = w - 2 * inset
+    local value_w  = math.floor(row_w * (opts.value_ratio or 0.38))
+    local text_w   = row_w - value_w - gap
     local from     = opts.from or 1
 
     -- One item as { widgets = {...}, h = total height, row_h, on_tap }.
@@ -95,6 +99,7 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
         }
         local row_h = math.max(text:getSize().h, value:getSize().h) + 2 * row_pad
         local widgets = { HorizontalGroup:new{
+            HorizontalSpan:new{ width = inset },
             LeftContainer:new{ dimen = Geom:new{ w = text_w, h = row_h }, text },
             HorizontalSpan:new{ width = gap },
             RightContainer:new{ dimen = Geom:new{ w = value_w, h = row_h }, value },
@@ -102,9 +107,12 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
         local h = row_h
         local nxt = spec[i + 1]
         if nxt and not nxt.section then
-            widgets[#widgets + 1] = LineWidget:new{
-                dimen = Geom:new{ w = w, h = line_h },
-                background = Blitbuffer.COLOR_LIGHT_GRAY,
+            widgets[#widgets + 1] = HorizontalGroup:new{
+                HorizontalSpan:new{ width = inset },
+                LineWidget:new{
+                    dimen = Geom:new{ w = row_w, h = line_h },
+                    background = Blitbuffer.COLOR_LIGHT_GRAY,
+                },
             }
             h = h + line_h
         end
@@ -130,10 +138,10 @@ function KoboldSettingsList.build(spec, x, y, w, opts)
             local tip = item.desc and function() KoboldSettingsList.showTip(item) end
             if tip then
                 -- Name: the tooltip. Value side: the setting itself.
-                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = text_w, h = p.row_h }, on_tap = tip }
+                hits[#hits + 1] = { rect = Geom:new{ x = x, y = cy, w = inset + text_w, h = p.row_h }, on_tap = tip }
                 if p.on_tap then
                     hits[#hits + 1] = {
-                        rect = Geom:new{ x = x + text_w, y = cy, w = w - text_w, h = p.row_h },
+                        rect = Geom:new{ x = x + inset + text_w, y = cy, w = w - inset - text_w, h = p.row_h },
                         on_tap = p.on_tap,
                     }
                 end
