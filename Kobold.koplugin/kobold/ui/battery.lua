@@ -57,13 +57,49 @@ local function charging()
 end
 
 local KoboldBattery = Widget:extend{
-    size   = nil,     -- the SVG is drawn size x size
+    size   = nil,     -- the SVG is drawn size x size (number only: the width)
     slot_h = nil,     -- height given to the icon in the status bar row
     style  = "fill",  -- "fill" or "percent"
 }
 
+-- Percentage without the battery icon (Kobold Settings > Toolbar, and the
+-- battery popup): just the number, e.g. "75%".
+local function numberOnly(style)
+    return style == "percent" and require("kobold.data.prefs").get("battery_icon") ~= true
+end
+
+local function numberText()
+    local level = capacity()
+    return level and (math.floor(level + 0.5) .. "%") or "?"
+end
+
+-- The number alone, as tall as the other status bar icons.
+local function numberWidget(slot_h)
+    return TextWidget:new{
+        text = numberText(),
+        face = Font:getFace("cfont", math.max(8, math.floor(slot_h * 0.62 / Screen:scaleBySize(1)))),
+    }
+end
+
+-- Width the battery takes in the status bar: the number's width when it is
+-- shown alone, otherwise the icon's.
+function KoboldBattery.width(icon_size, style)
+    if numberOnly(style) then
+        local t = numberWidget(icon_size)
+        local w = t:getSize().w
+        t:free()
+        return w
+    end
+    return math.floor(icon_size * 1.3)
+end
+
 function KoboldBattery:init()
     self.level = capacity()
+    self.number_only = numberOnly(self.style)
+    if self.number_only then
+        self.dimen = Geom:new{ w = self.size, h = self.slot_h }
+        return
+    end
     local set = require("kobold.data.prefs").get("icons") == "koreader" and SETS.koreader or SETS.kobold
     self.set = set
     local file = existing(set.icon)
@@ -93,6 +129,12 @@ end
 -- on the row; the transparent parts may reach past the row without showing.
 function KoboldBattery:paintTo(bb, x, y)
     self.dimen.x, self.dimen.y = x, y
+    if self.number_only then
+        local t = numberWidget(self.slot_h)
+        t:paintTo(bb, x, y + math.floor((self.slot_h - t:getSize().h) / 2))
+        t:free()
+        return
+    end
     local top = y + math.floor((self.slot_h - self.size) / 2)
     local INNER, FILL = self.set.INNER, self.set.FILL
     local u = self.size / 24
@@ -112,40 +154,17 @@ function KoboldBattery:paintTo(bb, x, y)
     if not self.level or not self.show_level then return end
 
     if self.style == "percent" then
-        -- The number about as tall as the icon itself (like the charging
-        -- bolt, it may reach past the outline). Each pixel of it flips the
-        -- pixel under it: black on the white inside, white where it crosses
-        -- the black outline, so it reads everywhere at full size.
+        -- With the icon on: the number small enough to sit inside it.
         local inner_w, inner_h = px(INNER.w), px(INNER.h)
         local text = TextWidget:new{
             text = tostring(math.floor(self.level + 0.5)),
-            face = Font:getFace("cfont", math.max(6, math.floor(self.size * 0.62 / Screen:scaleBySize(1)))),
+            face = Font:getFace("cfont", math.max(6, math.floor(inner_h * 0.9 / Screen:scaleBySize(1)))),
             bold = true,
+            max_width = inner_w,
         }
         local ts = text:getSize()
-        local tx = x + px(INNER.x) + math.floor((inner_w - ts.w) / 2)
-        local ty = top + px(INNER.y) + math.floor((inner_h - ts.h) / 2)
-        -- The text alone on a white bitmap, then each dark pixel of it
-        -- inverts the screen there.
-        local ok = pcall(function()
-            local tmp = Blitbuffer.new(ts.w, ts.h, Blitbuffer.TYPE_BB8)
-            tmp:fill(Blitbuffer.COLOR_WHITE)
-            text:paintTo(tmp, 0, 0)
-            for py = 0, ts.h - 1 do
-                local run = nil
-                for pxl = 0, ts.w do
-                    local dark = pxl < ts.w and tmp:getPixel(pxl, py):getColor8().a < 128
-                    if dark and not run then
-                        run = pxl
-                    elseif not dark and run then
-                        bb:invertRect(tx + run, ty + py, pxl - run, 1)
-                        run = nil
-                    end
-                end
-            end
-            tmp:free()
-        end)
-        if not ok then text:paintTo(bb, tx, ty) end
+        text:paintTo(bb, x + px(INNER.x) + math.floor((inner_w - ts.w) / 2),
+            top + px(INNER.y) + math.floor((inner_h - ts.h) / 2))
         text:free()
     end
 end

@@ -45,6 +45,13 @@ function KoboldBatteryPopup:build()
         UIManager:broadcastEvent(Event:new("KoboldSettingsChanged"))
         self:refresh()
     end)
+    if percent then
+        rows[#rows + 1] = Kit.switch(_("Battery icon"), KoboldPrefs.get("battery_icon") == true, function()
+            KoboldPrefs.set("battery_icon", KoboldPrefs.get("battery_icon") ~= true or nil)
+            UIManager:broadcastEvent(Event:new("KoboldSettingsChanged"))
+            self:refresh()
+        end)
+    end
     if KoboldBatteryStats.available() then
         rows[#rows + 1] = Kit.line()
         rows[#rows + 1] = Kit.link(_("Battery statistics"), function()
@@ -68,8 +75,7 @@ function KoboldBatteryPopup:init()
 end
 
 function KoboldBatteryPopup:refresh()
-    self[1] = self:build()
-    UIManager:setDirty(self, function() return "ui", self.frame_dimen end)
+    Kit.rebuild(self)
 end
 
 function KoboldBatteryPopup:onTapBattery(_, ges)

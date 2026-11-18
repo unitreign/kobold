@@ -30,7 +30,7 @@ msgstr ""
 msgid "Remove from Home"
 msgstr ""
 
-#: kobold/l10n.lua:6 kobold/ui/collection_manage.lua:228 kobold/ui/collection_pick.lua:202 kobold/ui/picker.lua:202 kobold/ui/search.lua:372 kobold/ui/settings.lua:312 kobold/ui/mybooks/rows.lua:405
+#: kobold/l10n.lua:6 kobold/ui/collection_manage.lua:228 kobold/ui/collection_pick.lua:202 kobold/ui/picker.lua:202 kobold/ui/search.lua:372 kobold/ui/settings.lua:340 kobold/ui/mybooks/rows.lua:405
 #, lua-format
 msgid "Page %1 of %2"
 msgstr ""
@@ -283,7 +283,7 @@ msgstr ""
 msgid "About"
 msgstr ""
 
-#: kobold/ui/about.lua:96 kobold/ui/settings.lua:129 kobold/ui/settings.lua:132 kobold/ui/settings.lua:161 kobold/ui/settings.lua:164 kobold/ui/settings.lua:221 kobold/ui/settings.lua:224 _meta.lua:10
+#: kobold/ui/about.lua:96 kobold/ui/settings.lua:129 kobold/ui/settings.lua:132 kobold/ui/settings.lua:161 kobold/ui/settings.lua:164 kobold/ui/settings.lua:232 kobold/ui/settings.lua:235 _meta.lua:10
 msgid "Kobold"
 msgstr ""
 
@@ -503,7 +503,11 @@ msgstr ""
 msgid "Icon fill"
 msgstr ""
 
-#: kobold/ui/battery_popup.lua:50
+#: kobold/ui/battery_popup.lua:49 kobold/ui/settings.lua:201
+msgid "Battery icon"
+msgstr ""
+
+#: kobold/ui/battery_popup.lua:57
 msgid "Battery statistics"
 msgstr ""
 
@@ -600,15 +604,15 @@ msgstr ""
 msgid "Show in Home"
 msgstr ""
 
-#: kobold/ui/brightness.lua:54 kobold/ui/brightness.lua:150 kobold/ui/brightness.lua:152
+#: kobold/ui/brightness.lua:54 kobold/ui/brightness.lua:149 kobold/ui/brightness.lua:151
 msgid "Natural light"
 msgstr ""
 
-#: kobold/ui/brightness.lua:150
+#: kobold/ui/brightness.lua:149
 msgid "AUTO"
 msgstr ""
 
-#: kobold/ui/brightness.lua:158
+#: kobold/ui/brightness.lua:156
 msgid "Night mode"
 msgstr ""
 
@@ -1052,7 +1056,7 @@ msgstr ""
 msgid "Information will be permanently lost."
 msgstr ""
 
-#: kobold/ui/reset_book.lua:135 kobold/ui/settings.lua:243 kobold/ui/settings.lua:245 kobold/ui/stats_settings.lua:169 kobold/ui/stats_settings.lua:171 kobold/ui/stats_settings.lua:202 kobold/ui/stats_settings.lua:204
+#: kobold/ui/reset_book.lua:135 kobold/ui/settings.lua:271 kobold/ui/settings.lua:273 kobold/ui/stats_settings.lua:169 kobold/ui/stats_settings.lua:171 kobold/ui/stats_settings.lua:202 kobold/ui/stats_settings.lua:204
 msgid "Reset"
 msgstr ""
 
@@ -1185,7 +1189,7 @@ msgstr ""
 msgid "What the \"...\" on a book (and holding a book on Home) opens: Kobold's menu with Read now and View Details, or KOReader's book menu directly."
 msgstr ""
 
-#: kobold/ui/settings.lua:129 kobold/ui/settings.lua:133 kobold/ui/settings.lua:161 kobold/ui/settings.lua:165 kobold/ui/settings.lua:221 kobold/ui/settings.lua:225
+#: kobold/ui/settings.lua:129 kobold/ui/settings.lua:133 kobold/ui/settings.lua:161 kobold/ui/settings.lua:165 kobold/ui/settings.lua:232 kobold/ui/settings.lua:236
 msgid "KOReader"
 msgstr ""
 
@@ -1225,47 +1229,59 @@ msgstr ""
 msgid "Show the charge as a fill inside the icon, or as a number."
 msgstr ""
 
-#: kobold/ui/settings.lua:217
+#: kobold/ui/settings.lua:202
+msgid "Show the percentage inside the battery icon, or just the number."
+msgstr ""
+
+#: kobold/ui/settings.lua:228
 msgid "General"
 msgstr ""
 
-#: kobold/ui/settings.lua:219 kobold/ui/settings.lua:223
+#: kobold/ui/settings.lua:230 kobold/ui/settings.lua:234
 msgid "Icons"
 msgstr ""
 
-#: kobold/ui/settings.lua:220
+#: kobold/ui/settings.lua:231
 msgid "Kobold's own icons for the status bar and nav bar, or KOReader's default icons."
 msgstr ""
 
-#: kobold/ui/settings.lua:233
+#: kobold/ui/settings.lua:245 kobold/ui/settings.lua:253
+msgid "Text size"
+msgstr ""
+
+#: kobold/ui/settings.lua:246
+msgid "Make all of Kobold's text bigger or smaller. The layout stays the same."
+msgstr ""
+
+#: kobold/ui/settings.lua:261
 msgid "Prepare covers"
 msgstr ""
 
-#: kobold/ui/settings.lua:234
+#: kobold/ui/settings.lua:262
 msgid "Read the cover of every book that has none yet, in the background. Can take several minutes."
 msgstr ""
 
-#: kobold/ui/settings.lua:235 kobold/ui/settings.lua:237
+#: kobold/ui/settings.lua:263 kobold/ui/settings.lua:265
 msgid "Start"
 msgstr ""
 
-#: kobold/ui/settings.lua:237
+#: kobold/ui/settings.lua:265
 msgid "Prepare covers for all books now?"
 msgstr ""
 
-#: kobold/ui/settings.lua:241
+#: kobold/ui/settings.lua:269
 msgid "Reset to defaults"
 msgstr ""
 
-#: kobold/ui/settings.lua:242
+#: kobold/ui/settings.lua:270
 msgid "Put every Kobold setting back as it was when first installed."
 msgstr ""
 
-#: kobold/ui/settings.lua:245
+#: kobold/ui/settings.lua:273
 msgid "Reset all Kobold settings?"
 msgstr ""
 
-#: kobold/ui/settings.lua:328
+#: kobold/ui/settings.lua:356
 msgid "Settings"
 msgstr ""
 
@@ -1365,12 +1381,12 @@ msgstr ""
 msgid "Reset the reading stats settings?"
 msgstr ""
 
-#: kobold/ui/widgets.lua:706
+#: kobold/ui/widgets.lua:720
 #, lua-format
 msgid "Screenshot failed: %1"
 msgstr ""
 
-#: kobold/ui/widgets.lua:730
+#: kobold/ui/widgets.lua:744
 msgid "File search is not available."
 msgstr ""
 
@@ -1402,7 +1418,7 @@ msgstr ""
 msgid "Wi-Fi Settings"
 msgstr ""
 
-#: kobold/ui/wifi.lua:218
+#: kobold/ui/wifi.lua:230
 msgid "Scanning for networks…"
 msgstr ""
 

@@ -41,8 +41,15 @@ function KoboldWidgets.fixed(w, h, child)
     }
 end
 
+-- Kobold Settings > Text size: every Kobold font scaled by this percent.
+-- Only text sizes change; the layout stays the same.
+local function scaled(size)
+    local pct = tonumber(KoboldPrefs.get("font_scale")) or 100
+    return math.max(6, math.floor(size * pct / 100 + 0.5))
+end
+
 function KoboldWidgets.face(size)
-    return Font:getFace("cfont", size)
+    return Font:getFace("cfont", scaled(size))
 end
 
 -- Italic serif for menu items, action words and buttons: KOReader's Noto
@@ -50,13 +57,13 @@ end
 -- Falls back to the normal face when the font file is missing.
 -- Upright serif (KOReader's Noto Serif), for popup titles and labels.
 function KoboldWidgets.serifFace(size)
-    local ok, face = pcall(function() return Font:getFace("NotoSerif-Regular.ttf", size) end)
+    local ok, face = pcall(function() return Font:getFace("NotoSerif-Regular.ttf", scaled(size)) end)
     if ok and face then return face end
     return KoboldWidgets.face(size)
 end
 
 function KoboldWidgets.italicFace(size)
-    local ok, face = pcall(function() return Font:getFace("NotoSerif-Italic.ttf", size) end)
+    local ok, face = pcall(function() return Font:getFace("NotoSerif-Italic.ttf", scaled(size)) end)
     if ok and face then return face end
     return KoboldWidgets.face(size)
 end
@@ -453,7 +460,7 @@ local function toolbarItems()
     local out = {}
     for i, id in ipairs(require("kobold.data.bars").items("toolbar")) do
         local w = size
-        if id == "battery" then w = math.floor(size * 1.3) end
+        if id == "battery" then w = KoboldBattery.width(size, style) end
         out[i] = { id = id, w = w }
     end
     return out, size, Screen:scaleBySize(STATUS_GAP), style

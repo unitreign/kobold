@@ -196,6 +196,17 @@ function KoboldSettings:spec()
                     end, done)
                 end,
             },
+            -- Only with the percentage: the number inside the battery icon.
+            KoboldPrefs.get("battery") == "percent" and {
+                title = _("Battery icon"),
+                desc = _("Show the percentage inside the battery icon, or just the number."),
+                switch = KoboldPrefs.get("battery_icon") == true,
+                on_tap = function()
+                    KoboldPrefs.set("battery_icon", KoboldPrefs.get("battery_icon") ~= true or nil)
+                    broadcastChange()
+                    done()
+                end,
+            } or nil,
         }) do spec[#spec + 1] = row end
         return spec
     end
@@ -225,6 +236,23 @@ function KoboldSettings:spec()
                 { id = "koreader", label = _("KOReader") },
             }, KoboldPrefs.get("icons") == "koreader" and "koreader" or "kobold", function(id)
                 KoboldPrefs.set("icons", id == "koreader" and "koreader" or nil)
+                UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
+            end, done)
+        end,
+    }
+    local font_scale = tonumber(KoboldPrefs.get("font_scale")) or 100
+    spec[#spec + 1] = {
+        title = _("Text size"),
+        desc = _("Make all of Kobold's text bigger or smaller. The layout stays the same."),
+        value = font_scale .. "%",
+        on_tap = function()
+            local choices = {}
+            for _i, pct in ipairs({ 80, 90, 100, 110, 120, 130, 140 }) do
+                choices[#choices + 1] = { id = pct, label = pct .. "%" }
+            end
+            KoboldEditors.choose(_("Text size"), choices, font_scale, function(pct)
+                KoboldPrefs.set("font_scale", pct ~= 100 and pct or nil)
+                -- Open Kobold screens are built again with the new size.
                 UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
             end, done)
         end,
