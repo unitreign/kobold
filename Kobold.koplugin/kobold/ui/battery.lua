@@ -88,7 +88,8 @@ function KoboldBattery.width(icon_size, style)
         local t = numberWidget(icon_size)
         local w = t:getSize().w
         t:free()
-        return w
+        -- At least the icon's width, so the other icons keep their place.
+        return math.max(w, math.floor(icon_size * 1.3))
     end
     return math.floor(icon_size * 1.3)
 end
@@ -131,7 +132,8 @@ function KoboldBattery:paintTo(bb, x, y)
     self.dimen.x, self.dimen.y = x, y
     if self.number_only then
         local t = numberWidget(self.slot_h)
-        t:paintTo(bb, x, y + math.floor((self.slot_h - t:getSize().h) / 2))
+        local ts = t:getSize()
+        t:paintTo(bb, x + math.floor((self.size - ts.w) / 2), y + math.floor((self.slot_h - ts.h) / 2))
         t:free()
         return
     end

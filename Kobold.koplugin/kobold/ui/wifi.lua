@@ -111,8 +111,11 @@ function KoboldWifi:build()
                 face = KoboldWidgets.face(15), max_width = inner - sw_w - gap,
             },
         })
-        self.rows.toggle = Geom:new{ x = x0, y = y, w = inner, h = row_h }
-        y = y + row_h
+        -- A little room under the switch row before the line.
+        local under = Screen:scaleBySize(6)
+        content[#content + 1] = VerticalSpan:new{ width = under }
+        self.rows.toggle = Geom:new{ x = x0, y = y, w = inner, h = row_h + under }
+        y = y + row_h + under
 
         if state.on then
             -- Network row: the connected network, or "Not connected" (tap

@@ -83,7 +83,7 @@ local function rowWidget(row, inner, pad)
         -- a control already have room inside them, so next to one the line
         -- keeps only a small gap; next to plain text, the full gap.
         local above = row.after_control and Screen:scaleBySize(2) or lineGap()
-        local below = row.before_control and Screen:scaleBySize(2) or lineGap()
+        local below = row.before_control and Screen:scaleBySize(8) or lineGap()
         local thick = Screen:scaleBySize(1)
         return HorizontalGroup:new{
             HorizontalSpan:new{ width = -pad },
