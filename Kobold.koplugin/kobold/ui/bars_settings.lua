@@ -33,11 +33,16 @@ local function itemMenu(bar, i, done)
     local choices = {}
     if i > 1 then choices[#choices + 1] = { id = "up", label = _("Move up") } end
     if i < #items then choices[#choices + 1] = { id = "down", label = _("Move down") } end
+    if bar == "nav" and KoboldBars.isScreen(id) and KoboldBars.startTab() ~= id then
+        choices[#choices + 1] = { id = "start", label = _("Open first") }
+    end
     if KoboldBars.removable(bar, id) then
         choices[#choices + 1] = { id = "remove", label = _("Remove") }
     end
     KoboldEditors.choose(KoboldBars.label(bar, id), choices, nil, function(what)
-        if what == "up" then
+        if what == "start" then
+            KoboldBars.setStartTab(id)
+        elseif what == "up" then
             items[i], items[i - 1] = items[i - 1], items[i]
         elseif what == "down" then
             items[i], items[i + 1] = items[i + 1], items[i]

@@ -181,12 +181,23 @@ function KoboldBars.isScreen(id)
     return SCREENS[id] == true
 end
 
--- The tab Kobold opens on: the first screen in the nav bar.
+-- The tab Kobold opens on: the one set as home (Kobold Settings > Nav
+-- bar), while it is still in the nav bar; otherwise the first screen there.
 function KoboldBars.startTab()
-    for _i, id in ipairs(KoboldBars.items("nav")) do
+    local items = KoboldBars.items("nav")
+    local chosen = KoboldPrefs.get("start_tab")
+    for _i, id in ipairs(items) do
+        if id == chosen and SCREENS[id] then return id end
+    end
+    for _i, id in ipairs(items) do
         if SCREENS[id] then return id end
     end
     return "more"
+end
+
+-- Makes screen `id` the one Kobold opens on (only one at a time).
+function KoboldBars.setStartTab(id)
+    KoboldPrefs.set("start_tab", id)
 end
 
 return KoboldBars
