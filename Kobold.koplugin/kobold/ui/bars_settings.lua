@@ -34,7 +34,7 @@ local function itemMenu(bar, i, done)
     if i > 1 then choices[#choices + 1] = { id = "up", label = _("Move up") } end
     if i < #items then choices[#choices + 1] = { id = "down", label = _("Move down") } end
     if bar == "nav" and KoboldBars.isScreen(id) and KoboldBars.startTab() ~= id then
-        choices[#choices + 1] = { id = "start", label = _("Open first") }
+        choices[#choices + 1] = { id = "start", label = _("Set as Home") }
     end
     if KoboldBars.removable(bar, id) then
         choices[#choices + 1] = { id = "remove", label = _("Remove") }
@@ -64,7 +64,7 @@ function KoboldBarsSettings.itemRows(bar, done)
         if bar == "nav" and id == "more" then
             note = _("Always shown")
         elseif bar == "nav" and KoboldBars.startTab() == id then
-            note = _("Opens first")
+            note = _("Home")
         end
         rows[#rows + 1] = {
             title = KoboldBars.label(bar, id),

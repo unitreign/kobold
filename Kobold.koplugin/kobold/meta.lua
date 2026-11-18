@@ -3,7 +3,7 @@
 -- _meta.lua, logs). Change VERSION here when releasing.
 
 local KoboldMeta = {
-    VERSION = "2.0",
+    VERSION = "2.1.0",
     REPO    = "https://github.com/unitreign/kobold",
     KOFI    = "https://ko-fi.com/unitreign",
     LICENSE = "GPL-3.0",
