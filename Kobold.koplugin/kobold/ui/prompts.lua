@@ -247,6 +247,8 @@ local NumberPrompt = InputContainer:extend{
     title = nil,
     info = nil,
     value = 1, min = 1, max = 99, default = nil,
+    increment = 1,  -- how much - and + change the value
+    suffix = "",    -- shown after the number, e.g. "%"
     on_set = nil,
     on_cancel = nil,
 }
@@ -298,12 +300,12 @@ function NumberPrompt:build()
         align = "center",
         stepButton("−", self.value > self.min),
         CenterContainer:new{ dimen = Geom:new{ w = mid_w, h = step_sz },
-            TextWidget:new{ text = tostring(self.value), face = KoboldWidgets.face(30), bold = true } },
+            TextWidget:new{ text = self.value .. (self.suffix or ""), face = KoboldWidgets.face(30), bold = true } },
         stepButton("+", self.value < self.max),
     })
     if self.default then
         add(CenterContainer:new{ dimen = Geom:new{ w = S.inner, h = Screen:scaleBySize(30) },
-            TextWidget:new{ text = _.T(_("Default: %1"), self.default), face = KoboldWidgets.face(13),
+            TextWidget:new{ text = _.T(_("Default: %1"), self.default .. (self.suffix or "")), face = KoboldWidgets.face(13),
                 fgcolor = KoboldWidgets.subtitleColor() } })
     end
     add(VerticalSpan:new{ width = 2 * S.gap })
@@ -334,8 +336,8 @@ end
 
 function NumberPrompt:onTapNumber(_, ges)
     local pos = ges.pos
-    if inside(pos, self.minus_rect) then self:step(-1)
-    elseif inside(pos, self.plus_rect) then self:step(1)
+    if inside(pos, self.minus_rect) then self:step(-(self.increment or 1))
+    elseif inside(pos, self.plus_rect) then self:step(self.increment or 1)
     elseif inside(pos, self.ok_rect) then
         self.done = true
         self:onClose()
@@ -355,7 +357,7 @@ function NumberPrompt:onClose()
 end
 
 -- A number between opts.min and opts.max. opts = { title, info, value, min,
--- max, default, on_set(value), on_cancel }.
+-- max, default, increment, suffix, on_set(value), on_cancel }.
 function KoboldPrompts.number(opts)
     local w = NumberPrompt:new(opts)
     UIManager:show(w, "ui", w.frame_dimen)

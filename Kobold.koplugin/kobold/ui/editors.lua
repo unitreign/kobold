@@ -31,6 +31,7 @@ function KoboldEditors.number(opts, on_set, done)
     require("kobold.ui.prompts").number{
         title = opts.title, info = opts.info,
         value = opts.value, min = opts.min, max = opts.max, default = opts.default,
+        increment = opts.step, suffix = opts.suffix,
         on_set = function(v)
             on_set(v)
             call(done)

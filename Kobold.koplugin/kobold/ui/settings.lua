@@ -246,11 +246,10 @@ function KoboldSettings:spec()
         desc = _("Make all of Kobold's text bigger or smaller. The layout stays the same."),
         value = font_scale .. "%",
         on_tap = function()
-            local choices = {}
-            for _i, pct in ipairs({ 80, 90, 100, 110, 120, 130, 140 }) do
-                choices[#choices + 1] = { id = pct, label = pct .. "%" }
-            end
-            KoboldEditors.choose(_("Text size"), choices, font_scale, function(pct)
+            KoboldEditors.number({
+                title = _("Text size"), value = font_scale, min = 70, max = 150,
+                step = 5, suffix = "%", default = 100,
+            }, function(pct)
                 KoboldPrefs.set("font_scale", pct ~= 100 and pct or nil)
                 -- Open Kobold screens are built again with the new size.
                 UIManager:broadcastEvent(Event:new("KoboldIconsChanged"))
