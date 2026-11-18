@@ -143,8 +143,20 @@ function Kit.build(popup, anchor_name, rows, fw)
     }
     local size = box:getSize()
     popup.frame_dimen = Geom:new{ x = fx, y = fy, w = size.w, h = size.h }
+    -- The largest area the box has taken up, for redraws when it shrinks
+    -- and for closing (popup.lua).
+    popup.covered = popup.covered and popup.covered:combine(popup.frame_dimen) or popup.frame_dimen:copy()
     popup.hits = hits
     return KoboldPopup.place(popup.dimen, fx, fy, box, KoboldPopup.anchor(anchor_name))
+end
+
+-- Builds the popup again (its rows changed) and redraws all it covered, so
+-- a box that got shorter leaves nothing behind.
+function Kit.rebuild(popup)
+    local UIManager = require("ui/uimanager")
+    popup[1] = popup:build()
+    local area = popup.covered
+    UIManager:setDirty("all", function() return "ui", area end)
 end
 
 -- The tap handler: a row's action (given the tap position and the row's

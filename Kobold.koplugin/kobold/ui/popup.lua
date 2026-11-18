@@ -194,7 +194,9 @@ end
 
 -- The part of the screen to refresh for `popup`: its box and the arrow.
 local function region(popup)
-    local d = popup.frame_dimen
+    -- `covered`: everything the box took up while open, when it changed
+    -- size (popup_kit.lua), so closing clears all of it.
+    local d = popup.covered or popup.frame_dimen
     if not d then return nil end
     local h = arrowH()
     return Geom:new{ x = d.x - h, y = d.y - h, w = d.w + 2 * h, h = d.h + 2 * h }

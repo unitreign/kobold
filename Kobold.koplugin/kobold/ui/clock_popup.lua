@@ -95,8 +95,7 @@ end
 
 function KoboldClockPopup:refresh()
     if self.closed then return end
-    self[1] = self:build()
-    UIManager:setDirty(self, function() return "ui", self.frame_dimen end)
+    Kit.rebuild(self)
 end
 
 -- Open Kobold screens redraw their status bar with the new format.
