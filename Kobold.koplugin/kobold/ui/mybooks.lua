@@ -52,6 +52,8 @@ local PAGE_TURNS_PER_FLASH = 10  -- see refreshList
 local FILTER_KEY     = "kobold_mybooks_filter"
 local SORT_KEY       = "kobold_mybooks_sort"
 local GROUP_SORT_KEY = "kobold_mybooks_group_sort"
+local FILES_FILTER_KEY = "kobold_files_filter"
+local FILES_SORT_KEY   = "kobold_files_sort"
 local VIEW_KEY       = "kobold_mybooks_view"  -- Books tab: "list" or "grid"
 
 local TABS = {
@@ -85,6 +87,10 @@ local SORT_LABELS = {
     added_asc  = { pill = _("Oldest"),    menu = _("Date added: oldest first") },
     title_asc  = { pill = _("Title A–Z"), menu = _("Title: A to Z") },
     title_desc = { pill = _("Title Z–A"), menu = _("Title: Z to A") },
+    -- Files tab only.
+    name_asc   = { pill = _("Name A–Z"),  menu = _("Name: A to Z") },
+    name_desc  = { pill = _("Name Z–A"),  menu = _("Name: Z to A") },
+    size_desc  = { pill = _("Largest"),   menu = _("Size: largest first") },
 }
 
 local GROUP_SORT_LABELS = {
@@ -156,6 +162,8 @@ function KoboldMyBooks:init()
     self.sort       = readChoice(SORT_KEY, KoboldMyBooksData.SORTS, "added_desc")
     self.group_sort = readChoice(GROUP_SORT_KEY, KoboldMyBooksData.GROUP_SORTS, "name_asc")
     self.view       = readChoice(VIEW_KEY, { "list", "grid" }, "list")
+    self.files_filter = readChoice(FILES_FILTER_KEY, KoboldMyBooksData.FILTERS, "all")
+    self.files_sort   = readChoice(FILES_SORT_KEY, KoboldMyBooksData.FILE_SORTS, "name_asc")
     self.page       = 1
     self.books      = KoboldMyBooksData.getBooks()
 
@@ -600,6 +608,9 @@ function KoboldMyBooks:buildPills()
         else
             specs = { { label = name, back = true, action = function() self:openFolder(self:parentFolder()) end } }
         end
+        specs[1].folder = true
+        specs[2] = { label = _.T(_("Filter: %1"), FILTER_LABELS[self.files_filter]), action = function() self:showFilesFilterDialog() end }
+        specs[3] = { label = _.T(_("Sort: %1"), SORT_LABELS[self.files_sort].pill), action = function() self:showFilesSortDialog() end }
     elseif self.tab == "books" then
         specs = {
             { label = _.T(_("Filter: %1"), FILTER_LABELS[self.filter]), action = function() self:showFilterDialog() end },
@@ -625,19 +636,29 @@ function KoboldMyBooks:buildPills()
     local row = HorizontalGroup:new{ align = "center" }
     local x = L.margin
     self.pill_hits, self.pill_actions = {}, {}
+    -- Files tab: the folder pill leaves room for Filter and Sort.
+    local others_w = 0
+    for _i, spec in ipairs(specs) do
+        if not (spec.plain or spec.back) then
+            local p, pw = self:buildPill(spec.label, KoboldWidgets.chevronDown(icon_size))
+            p:free()
+            others_w = others_w + pw + L.pill_gap
+        end
+    end
     for i, spec in ipairs(specs) do
         local pill, w
+        local cap = spec.folder and math.max(Screen:scaleBySize(40), L.content_w - others_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6)) or nil
         if spec.plain then
             pill, w = self:buildPill(spec.label,
                 KoboldWidgets.icon("home", icon_size, { fallback = "appbar.filebrowser" }), true,
-                L.content_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6))
+                cap or (L.content_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6)))
         elseif spec.back then
             -- Back pill: left chevron and the group's name, cut to fit.
             local max_text = L.content_w - 2 * L.pill_pad - icon_size - Screen:scaleBySize(6)
             if self.tab == "collections" or self.tab == "series" then
                 max_text = max_text - Screen:scaleBySize(40) - 3 * L.pill_gap
             end
-            pill, w = self:buildPill(spec.label, KoboldWidgets.icon("chevron.left", icon_size), true, max_text)
+            pill, w = self:buildPill(spec.label, KoboldWidgets.icon("chevron.left", icon_size), true, cap or max_text)
         else
             pill, w = self:buildPill(spec.label, KoboldWidgets.chevronDown(icon_size))
         end
@@ -835,6 +856,18 @@ function KoboldMyBooks:showFilterDialog()
     self:showChoiceDialog(_("Filter"), KoboldMyBooksData.FILTERS, self.filter,
         function(id) return FILTER_LABELS[id] end,
         function(id) self:setChoice("filter", FILTER_KEY, id) end)
+end
+
+function KoboldMyBooks:showFilesFilterDialog()
+    self:showChoiceDialog(_("Filter"), KoboldMyBooksData.FILTERS, self.files_filter,
+        function(id) return FILTER_LABELS[id] end,
+        function(id) self:setChoice("files_filter", FILES_FILTER_KEY, id) end)
+end
+
+function KoboldMyBooks:showFilesSortDialog()
+    self:showChoiceDialog(_("Sort"), KoboldMyBooksData.FILE_SORTS, self.files_sort,
+        function(id) return SORT_LABELS[id].menu end,
+        function(id) self:setChoice("files_sort", FILES_SORT_KEY, id) end)
 end
 
 function KoboldMyBooks:showSortDialog()

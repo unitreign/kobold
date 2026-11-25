@@ -48,8 +48,8 @@ return function(KoboldMyBooks, shared)
         return parent
     end
 
-    -- Entries of folder `dir`: subfolders, then books KOReader can open, each
-    -- sorted by name. Hidden files and book data folders (.sdr) are left out.
+    -- Entries of folder `dir`: subfolders (by name), then books KOReader can
+    -- open, filtered and sorted as chosen on the Files tab's pills. Hidden files and book data folders (.sdr) are left out.
     -- Books use the library's entries when known, so status and covers match.
     function KoboldMyBooks:listFolder(dir)
         local DocumentRegistry = require("document/documentregistry")
@@ -74,8 +74,38 @@ return function(KoboldMyBooks, shared)
                 end
             end
         end
-        table.sort(dirs, function(a, b) return a.name:lower() < b.name:lower() end)
-        table.sort(files, function(a, b) return (a.file:match("[^/]+$") or ""):lower() < (b.file:match("[^/]+$") or ""):lower() end)
+        local sort = self.files_sort or "name_asc"
+        local desc = sort == "name_desc"
+        table.sort(dirs, function(a, b)
+            if desc then return a.name:lower() > b.name:lower() end
+            return a.name:lower() < b.name:lower()
+        end)
+        local Data = require("kobold.data.mybooks")
+        files = Data.filter(files, self.files_filter or "all")
+        local function fname(f) return (f.file:match("[^/]+$") or ""):lower() end
+        if sort == "name_asc" or sort == "name_desc" then
+            local copy = {}
+            for i, f in ipairs(files) do copy[i] = f end
+            table.sort(copy, function(a, b)
+                if desc then return fname(a) > fname(b) end
+                return fname(a) < fname(b)
+            end)
+            files = copy
+        elseif sort == "size_desc" then
+            local size = {}
+            for _i, f in ipairs(files) do
+                size[f] = f.size or lfs.attributes(f.file, "size") or 0
+            end
+            local copy = {}
+            for i, f in ipairs(files) do copy[i] = f end
+            table.sort(copy, function(a, b)
+                if size[a] ~= size[b] then return size[a] > size[b] end
+                return fname(a) < fname(b)
+            end)
+            files = copy
+        else
+            files = Data.sort(files, sort)
+        end
         for _i, f in ipairs(files) do dirs[#dirs + 1] = f end
         return dirs
     end

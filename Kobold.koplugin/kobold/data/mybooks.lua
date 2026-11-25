@@ -35,6 +35,9 @@ end
 -- Sort ids for the Authors, Series and Collections lists.
 KoboldMyBooksData.GROUP_SORTS = { "name_asc", "name_desc" }
 
+-- Files tab sorts: by file name, date, last opened or size.
+KoboldMyBooksData.FILE_SORTS = { "name_asc", "name_desc", "added_desc", "added_asc", "opened_desc", "size_desc" }
+
 -- KOReader keeps several authors in one string, one per line.
 local function splitAuthors(authors)
     local list = {}
